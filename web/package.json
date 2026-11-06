@@ -9,15 +9,18 @@
     "typecheck": "tsc --noEmit",
     "create-show": "tsx scripts/create-show.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "keys:generate": "tsx scripts/generate-keys.ts"
+    "keys:generate": "tsx scripts/generate-keys.ts",
+    "postinstall": "node scripts/copy-pdf-worker.mjs"
   },
   "license": "ISC",
   "dependencies": {
     "@line/liff": "^2.31.2",
+    "@vercel/blob": "^2.8.2",
     "ethers": "^6.17.0",
     "google-auth-library": "^11.3.3",
     "jose": "^6.2.15",
     "next": "^15.5.29",
+    "pdfjs-dist": "^4.10.38",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",
@@ -30,6 +33,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "pdf-lib": "^1.17.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.1.0"

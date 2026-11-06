@@ -32,7 +32,7 @@ export async function setSession(userId: string): Promise<void> {
   const jar = await cookies();
   jar.set(COOKIE, await createSessionToken(userId), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SITE_URL?.startsWith("http://"),
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE_SECONDS,

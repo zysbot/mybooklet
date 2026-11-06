@@ -2,6 +2,8 @@ import type { Queryable } from "./db";
 
 export interface ShowInfo {
   showId: string;
+  designId: string;
+  pageCount: number;
   title: string;
   companyName: string;
   genre: string | null;
@@ -51,13 +53,15 @@ export interface BookletDetail extends ShowInfo {
 // 場次的卡面：場次自己指定的版本，沒有就用節目的預設版本
 const SHOW_SELECT = `
   s.id AS show_id, p.title, p.company_name, p.genre, s.venue, s.starts_at, s.metadata_uri,
-  d.cover_color, d.label AS design_label, d.content
+  d.id AS design_id, d.page_count, d.cover_color, d.label AS design_label, d.content
   FROM shows s
   JOIN productions p ON p.id = s.production_id
   JOIN designs d ON d.id = COALESCE(s.design_id, p.default_design_id)`;
 
 type ShowRow = {
   show_id: string;
+  design_id: string;
+  page_count: number;
   title: string;
   company_name: string;
   genre: string | null;
@@ -72,6 +76,8 @@ type ShowRow = {
 function toShowInfo(r: ShowRow): ShowInfo {
   return {
     showId: String(r.show_id),
+    designId: String(r.design_id),
+    pageCount: Number(r.page_count ?? 0),
     title: r.title,
     companyName: r.company_name,
     genre: r.genre,

@@ -120,3 +120,25 @@ CREATE TABLE IF NOT EXISTS migrations (
   status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'done', 'failed')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------
+-- 節目單 PDF：上傳時在瀏覽器把每一頁轉成圖片，觀眾在手機上翻頁閱讀
+-- ---------------------------------------------------------------
+
+-- 每次上傳是一個批次；確認後才成為卡面版本目前使用的頁面，舊批次保留不刪
+ALTER TABLE designs ADD COLUMN IF NOT EXISTS current_upload_id UUID;
+ALTER TABLE designs ADD COLUMN IF NOT EXISTS page_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE designs ADD COLUMN IF NOT EXISTS pdf_filename TEXT;
+ALTER TABLE designs ADD COLUMN IF NOT EXISTS pdf_uploaded_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS design_pages (
+  design_id   BIGINT NOT NULL REFERENCES designs(id),
+  upload_id   UUID NOT NULL,
+  page_no     INTEGER NOT NULL CHECK (page_no >= 1),
+  url         TEXT NOT NULL,
+  width       INTEGER NOT NULL,
+  height      INTEGER NOT NULL,
+  bytes       INTEGER NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (design_id, upload_id, page_no)
+);

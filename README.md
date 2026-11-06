@@ -30,6 +30,7 @@ npm run build
 | `/api/claim` | 領取：只寫資料庫、立即回應，回應後在背景通知與上鏈 |
 | `/api/cron/mint` | 定時掃描：重試與對帳（GitHub Actions 每 5 分鐘呼叫） |
 | `/api/metadata/<場次>`、`/api/cover/<場次>` | token 的 metadata 與卡面圖 |
+| `/admin` | 營運後台：上傳節目單 PDF（瀏覽器端轉成每頁圖片），查看各場次領取與上鏈數 |
 
 | 指令 | 用途 |
 | --- | --- |

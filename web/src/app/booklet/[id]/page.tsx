@@ -6,6 +6,8 @@ import { currentUserId } from "@/lib/session";
 import { getBooklet } from "@/lib/booklets";
 import { explorerTxUrl, formatDateTime, formatSerial, formatShowTime } from "@/lib/format";
 import { ProgramCard } from "@/components/ProgramCard";
+import { BookletReader } from "@/components/BookletReader";
+import { getDesignPages } from "@/lib/pages";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +28,10 @@ export default async function BookletPage({ params }: Params) {
   const { id } = await params;
   const userId = await currentUserId();
   if (!userId) redirect("/me");
-  const b = await getBooklet(getDb(), id, userId);
+  const db = getDb();
+  const b = await getBooklet(db, id, userId);
   if (!b) notFound();
+  const pages = b.pageCount > 0 ? await getDesignPages(db, b.designId) : [];
 
   const { content } = b;
   const minted = b.chainStatus === "minted";
@@ -64,27 +68,37 @@ export default async function BookletPage({ params }: Params) {
 
       <hr className="rule" />
 
-      {content.intro && (
+      {pages.length > 0 ? (
         <section className="section">
-          <h2>節目介紹</h2>
-          <p>{content.intro}</p>
+          <h2>節目單</h2>
+          <BookletReader pages={pages} title={b.title} />
         </section>
-      )}
-      {content.directorNote && (
-        <section className="section">
-          <h2>導演的話</h2>
-          <p>{content.directorNote}</p>
-        </section>
-      )}
-      {content.credits && content.credits.length > 0 && (
-        <section className="section">
-          <h2>演出與製作團隊</h2>
-          <div className="rows" style={{ gap: 10 }}>
-            {content.credits.map((c, i) => (
-              <div className="row" key={i}><span className="row-label">{c.role}</span><span>{c.names}</span></div>
-            ))}
-          </div>
-        </section>
+      ) : (
+        <>
+        {content.intro && (
+          <section className="section">
+            <h2>節目介紹</h2>
+            <p>{content.intro}</p>
+          </section>
+        )}
+        {content.directorNote && (
+          <section className="section">
+            <h2>導演的話</h2>
+            <p>{content.directorNote}</p>
+          </section>
+        )}
+        {content.credits && content.credits.length > 0 && (
+          <section className="section">
+            <h2>演出與製作團隊</h2>
+            <div className="rows" style={{ gap: 10 }}>
+              {content.credits.map((c, i) => (
+                <div className="row" key={i}><span className="row-label">{c.role}</span><span>{c.names}</span></div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        </>
       )}
 
       <section className="cert" aria-labelledby="cert-title">

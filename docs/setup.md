@@ -90,6 +90,7 @@
    | `NEXT_PUBLIC_SITE_URL` | `https://mybooklet.party` |
    | `SESSION_SECRET` | 一串至少 32 字元的隨機字（可在 Codespace 跑 `openssl rand -hex 32`） |
    | `CRON_SECRET` | 另一串隨機字 |
+   | `ADMIN_PASSWORD` | 營運後台密碼，至少 12 個字元，存進你的密碼管理工具 |
    | `DATABASE_URL` | 第 4 步 |
    | `LINE_LOGIN_CHANNEL_ID`、`NEXT_PUBLIC_LIFF_ID`、`LINE_MESSAGING_ACCESS_TOKEN` | 第 5 步 |
    | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | 第 6 步 |
@@ -102,8 +103,9 @@
    | `WALLET_XPUB` | 第 1 步 |
    | `MINTER_PRIVATE_KEY`、`CURATOR_PRIVATE_KEY` | 第 1 步的營運錢包私鑰 |
 
-4. **Deploy**。完成後到 **Settings → Domains** 加入 `mybooklet.party`，照指示設定 DNS。
-5. 回到 GitHub repo 的 **Settings → Secrets and variables → Actions**，再新增兩個：
+4. **Storage → Create Database → Blob**，建立後連結到這個專案（節目單頁面圖片存在這裡）。它會自動加入 `BLOB_READ_WRITE_TOKEN`，不用自己填。
+5. **Deploy**。完成後到 **Settings → Domains** 加入 `mybooklet.party`，照指示設定 DNS。
+6. 回到 GitHub repo 的 **Settings → Secrets and variables → Actions**，再新增兩個：
    - `SITE_URL`：`https://mybooklet.party`
    - `CRON_SECRET`：與上面相同
    這樣每 5 分鐘會自動處理重試上鏈。
@@ -117,6 +119,10 @@
    npm run create-show -- shows/my-first-show.json
    ```
 4. 每個場次的 QR code 圖檔會出現在 `web/out/`，右鍵下載就能印出來放在入口。
+5. 上傳節目單 PDF：打開 `https://mybooklet.party/admin`，用 `ADMIN_PASSWORD` 登入，在這檔節目的卡面版本旁按「上傳 PDF」，把劇團給的 PDF 拖進去。
+   - PDF 會在你的瀏覽器裡轉成每頁圖片再上傳，50 頁大約一兩分鐘，期間不要關閉頁面。
+   - 預覽沒問題後按「確認發布」。各場次節目單相同時，保留「其他卡面版本也使用這份節目單」的勾選，只要上傳一次。
+   - 之後要更正錯字，重新上傳一次即可；按確認發布前，觀眾看到的都還是舊版。
 
 ---
 
@@ -125,6 +131,7 @@
 | 項目 | 第 0 階段 | 第 1 階段 |
 | --- | --- | --- |
 | 節目內容 | 由網站提供（`/api/metadata`） | 上傳 Arweave，合約指向 Arweave 網址 |
+| 節目單頁面圖片 | Vercel Blob | 另存一份到 Arweave 永久保存 |
 | 鑄造與內容私鑰 | 環境變數 | 雲端金鑰管理（KMS） |
 | 管理角色 | 營運錢包 | 多簽錢包 |
 | 合約 | 未審查 | 第三方安全審查後部署 |
