@@ -19,3 +19,4 @@ web/next-env.d.ts
 web/public/pdf.worker.min.mjs
 .data/
 web/.data/
+web/tsconfig.tsbuildinfo
