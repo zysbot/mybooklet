@@ -41,6 +41,7 @@ export default async function MyCollectionPage() {
         <h1 className="title" style={{ fontSize: 30 }}>我的收藏冊</h1>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           {booklets.length > 0 ? `${booklets.length} 份節目單・${firstYear} 年起` : "還沒有節目單"}
+          {user.pseudonym ? `・化名「${user.pseudonym}」` : ""}
         </p>
       </div>
       {booklets.length === 0 ? (

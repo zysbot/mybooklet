@@ -28,9 +28,9 @@ async function mintedFixture() {
   const ctx = await deployFixture();
   const { booklet, minter, alice, bob } = ctx;
   await booklet.connect(minter).mintBatch([
-    { to: alice.address, showId: SHOW_A, serial: 1, claimedAt: 1763700000, claimId: claimId("c1") },
-    { to: bob.address, showId: SHOW_A, serial: 2, claimedAt: 1763700060, claimId: claimId("c2") },
-    { to: alice.address, showId: SHOW_B, serial: 1, claimedAt: 1763800000, claimId: claimId("c3") },
+    { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: 20261121, claimId: claimId("c1") },
+    { to: bob.address, showId: SHOW_A, serial: 2, claimedOn: 20261121, claimId: claimId("c2") },
+    { to: alice.address, showId: SHOW_B, serial: 1, claimedOn: 20261122, claimId: claimId("c3") },
   ]);
   return ctx;
 }
@@ -85,13 +85,13 @@ describe("MyBooklet", function () {
   });
 
   describe("批次鑄造", function () {
-    it("鑄造後記錄場次、入場編號、領取時間，tokenURI 指向場次內容", async function () {
+    it("鑄造後記錄場次、入場編號、領取日期，tokenURI 指向場次內容", async function () {
       const { booklet, alice } = await loadFixture(mintedFixture);
       expect(await booklet.ownerOf(1)).to.equal(alice.address);
       const t = await booklet.ticketOf(1);
       expect(t.showId).to.equal(SHOW_A);
       expect(t.serial).to.equal(1);
-      expect(t.claimedAt).to.equal(1763700000);
+      expect(t.claimedOn).to.equal(20261121);
       expect(await booklet.tokenURI(1)).to.equal(URI_A);
       expect(await booklet.tokenURI(3)).to.equal(URI_B);
       expect(await booklet.totalMinted()).to.equal(3);
@@ -107,7 +107,7 @@ describe("MyBooklet", function () {
     it("發出 Locked 與 Claimed 事件", async function () {
       const { booklet, minter, alice } = await loadFixture(deployFixture);
       const tx = booklet.connect(minter).mintBatch([
-        { to: alice.address, showId: SHOW_A, serial: 7, claimedAt: 1, claimId: claimId("ev") },
+        { to: alice.address, showId: SHOW_A, serial: 7, claimedOn: 20261121, claimId: claimId("ev") },
       ]);
       await expect(tx).to.emit(booklet, "Locked").withArgs(1);
       await expect(tx).to.emit(booklet, "Claimed").withArgs(claimId("ev"), 1, alice.address, SHOW_A, 7);
@@ -116,8 +116,8 @@ describe("MyBooklet", function () {
     it("重複的 claimId 會略過，不會重複鑄造，也不會整批失敗", async function () {
       const { booklet, minter, alice, bob } = await loadFixture(mintedFixture);
       const tx = booklet.connect(minter).mintBatch([
-        { to: alice.address, showId: SHOW_A, serial: 1, claimedAt: 1, claimId: claimId("c1") }, // 已鑄造過
-        { to: bob.address, showId: SHOW_B, serial: 2, claimedAt: 2, claimId: claimId("c4") },   // 新的
+        { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: 20261121, claimId: claimId("c1") }, // 已鑄造過
+        { to: bob.address, showId: SHOW_B, serial: 2, claimedOn: 20261121, claimId: claimId("c4") },   // 新的
       ]);
       await expect(tx).to.emit(booklet, "ClaimSkipped").withArgs(claimId("c1"), 1);
       expect(await booklet.totalMinted()).to.equal(4);
@@ -127,8 +127,8 @@ describe("MyBooklet", function () {
     it("同一批內重複的 claimId 也只鑄造一次", async function () {
       const { booklet, minter, alice } = await loadFixture(deployFixture);
       await booklet.connect(minter).mintBatch([
-        { to: alice.address, showId: SHOW_A, serial: 1, claimedAt: 1, claimId: claimId("dup") },
-        { to: alice.address, showId: SHOW_A, serial: 1, claimedAt: 1, claimId: claimId("dup") },
+        { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: 20261121, claimId: claimId("dup") },
+        { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: 20261121, claimId: claimId("dup") },
       ]);
       expect(await booklet.totalMinted()).to.equal(1);
     });
@@ -137,7 +137,7 @@ describe("MyBooklet", function () {
       const { booklet, stranger, alice } = await loadFixture(deployFixture);
       await expect(
         booklet.connect(stranger).mintBatch([
-          { to: alice.address, showId: SHOW_A, serial: 1, claimedAt: 1, claimId: claimId("x") },
+          { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: 20261121, claimId: claimId("x") },
         ])
       ).to.be.revertedWithCustomError(booklet, "AccessControlUnauthorizedAccount");
     });
@@ -146,7 +146,7 @@ describe("MyBooklet", function () {
       const { booklet, minter, alice } = await loadFixture(deployFixture);
       await expect(
         booklet.connect(minter).mintBatch([
-          { to: alice.address, showId: 99, serial: 1, claimedAt: 1, claimId: claimId("x") },
+          { to: alice.address, showId: 99, serial: 1, claimedOn: 20261121, claimId: claimId("x") },
         ])
       ).to.be.revertedWithCustomError(booklet, "ShowNotConfigured");
     });
@@ -155,9 +155,30 @@ describe("MyBooklet", function () {
       const { booklet, minter } = await loadFixture(deployFixture);
       await expect(
         booklet.connect(minter).mintBatch([
-          { to: ethers.ZeroAddress, showId: SHOW_A, serial: 1, claimedAt: 1, claimId: claimId("x") },
+          { to: ethers.ZeroAddress, showId: SHOW_A, serial: 1, claimedOn: 20261121, claimId: claimId("x") },
         ])
       ).to.be.revertedWithCustomError(booklet, "InvalidRecipient");
+    });
+
+    it("只接受 YYYYMMDD 日期，拒絕 Unix 秒數等其他數值", async function () {
+      const { booklet, minter, alice } = await loadFixture(deployFixture);
+      for (const bad of [1763700000, 0, 20261321, 20261100, 19991231, 30000101]) {
+        await expect(
+          booklet.connect(minter).mintBatch([
+            { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: bad, claimId: claimId("bad-" + bad) },
+          ])
+        ).to.be.revertedWithCustomError(booklet, "InvalidDate");
+      }
+      await booklet.connect(minter).mintBatch([
+        { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: 20261231, claimId: claimId("ok") },
+      ]);
+      expect((await booklet.ticketOf(1)).claimedOn).to.equal(20261231);
+    });
+
+    it("鏈上紀錄不含時刻：Ticket 只有場次、入場編號、日期", async function () {
+      const { booklet } = await loadFixture(mintedFixture);
+      const t = await booklet.ticketOf(1);
+      expect(Object.keys(t.toObject())).to.deep.equal(["showId", "serial", "claimedOn"]);
     });
   });
 
@@ -249,7 +270,7 @@ describe("MyBooklet", function () {
       await booklet.connect(admin).revokeRole(await booklet.MINTER_ROLE(), minter.address);
       await expect(
         booklet.connect(minter).mintBatch([
-          { to: alice.address, showId: SHOW_A, serial: 1, claimedAt: 1, claimId: claimId("x") },
+          { to: alice.address, showId: SHOW_A, serial: 1, claimedOn: 20261121, claimId: claimId("x") },
         ])
       ).to.be.revertedWithCustomError(booklet, "AccessControlUnauthorizedAccount");
     });
@@ -268,7 +289,7 @@ describe("MyBooklet", function () {
       const { booklet, minter } = await loadFixture(deployFixture);
       const wallets = Array.from({ length: 50 }, () => ethers.Wallet.createRandom().address);
       const reqs = wallets.map((to, i) => ({
-        to, showId: SHOW_A, serial: i + 1, claimedAt: 1763700000 + i, claimId: claimId("batch-" + i),
+        to, showId: SHOW_A, serial: i + 1, claimedOn: 20261121, claimId: claimId("batch-" + i),
       }));
       const receipt = await (await booklet.connect(minter).mintBatch(reqs)).wait();
       console.log(`      50 份共 ${receipt.gasUsed} gas，平均每份 ${receipt.gasUsed / 50n} gas`);

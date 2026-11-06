@@ -5,8 +5,6 @@ import { claimShow, ClaimError, CLAIM_ERROR_MESSAGES } from "@/lib/claim";
 import { getShow } from "@/lib/booklets";
 import { getUser } from "@/lib/users";
 import { notifyClaimed } from "@/lib/notify";
-import { runMintBatch } from "@/lib/mint-worker";
-import { createMintChain } from "@/lib/chain";
 
 export async function POST(req: Request) {
   const userId = await currentUserId();
@@ -26,17 +24,12 @@ export async function POST(req: Request) {
     throw err;
   }
 
-  // 回應觀眾之後，才在背景通知與上鏈：觀眾不用等
+  // 回應觀眾之後，才在背景通知：觀眾不用等。
+  // 上鏈不在這裡做：每天批次一次（/api/cron/mint），鏈上看不出領取的確切時間。
   if (!result.alreadyClaimed) {
     after(async () => {
       const [user, show] = await Promise.all([getUser(db, userId), getShow(db, result.showId)]);
       if (user && show) await notifyClaimed(user, show, result);
-      try {
-        await runMintBatch(db, createMintChain());
-      } catch (err) {
-        // 失敗沒關係：定時掃描會再處理
-        console.warn("即時上鏈失敗，等待定時重試：", err instanceof Error ? err.message : err);
-      }
     });
   }
 

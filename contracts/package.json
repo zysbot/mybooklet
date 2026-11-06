@@ -5,7 +5,7 @@
   "scripts": {
     "test": "hardhat test",
     "compile": "hardhat compile",
-    "deploy:testnet": "hardhat run scripts/deploy.js --network kairos"
+    "deploy:testnet": "hardhat run scripts/deploy.js --network baseSepolia"
   },
   "license": "ISC",
   "devDependencies": {

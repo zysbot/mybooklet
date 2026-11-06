@@ -5,7 +5,7 @@ import { seedTestViewers, clearTestViewers, TEST_VIEWER_COUNT } from "@/lib/test
 import { TEST_CATALOG, testClaimWindow } from "@/lib/test-catalog";
 import { getInsights } from "@/lib/insights";
 import { findOrCreateUser } from "@/lib/users";
-import { createTestDb, testXpub } from "./helpers";
+import { createTestDb } from "./helpers";
 
 const SITE = "https://mybooklet.party";
 const NOW = new Date("2026-11-06T11:00:00Z");
@@ -126,7 +126,7 @@ describe("測試觀眾", () => {
   });
 
   it("20 位觀眾，每人至少兩檔、至少兩種類型，部分標記前三", async () => {
-    const r = await seedTestViewers(db, testXpub(), { now: NOW });
+    const r = await seedTestViewers(db, { now: NOW });
     expect(r.viewers).toBe(TEST_VIEWER_COUNT);
     expect(r.shows).toBe(10);
     expect(r.skipped).toBe(0);
@@ -144,7 +144,7 @@ describe("測試觀眾", () => {
   });
 
   it("領取時間落在演出前，不晚於現在；未來場次以現在為準", async () => {
-    await seedTestViewers(db, testXpub(), { now: NOW });
+    await seedTestViewers(db, { now: NOW });
     const rows = await db.query<{ claimed_at: Date; starts_at: Date }>(
       `SELECT c.claimed_at, s.starts_at FROM claims c JOIN shows s ON s.id = c.show_id`
     );
@@ -156,21 +156,21 @@ describe("測試觀眾", () => {
   });
 
   it("重複執行不會重複領取", async () => {
-    const a = await seedTestViewers(db, testXpub(), { now: NOW });
-    const b = await seedTestViewers(db, testXpub(), { now: NOW });
+    const a = await seedTestViewers(db, { now: NOW });
+    const b = await seedTestViewers(db, { now: NOW });
     expect(b.claims).toBe(0);
     const n = await db.query<{ n: string }>(`SELECT count(*) AS n FROM claims`);
     expect(Number(n.rows[0].n)).toBe(a.claims);
   });
 
   it("可讓真實觀眾領取全部測試節目", async () => {
-    const me = await findOrCreateUser(db, { provider: "line", subject: "U-me" }, testXpub());
-    const r = await seedTestViewers(db, testXpub(), { now: NOW, includeUserId: me.id });
+    const me = await findOrCreateUser(db, { provider: "line", subject: "U-me" });
+    const r = await seedTestViewers(db, { now: NOW, includeUserId: me.id });
     expect(r.includedUserClaims).toBe(10);
   });
 
   it("製作方後台看得到足跡（觀眾達 10 人）", async () => {
-    await seedTestViewers(db, testXpub(), { now: NOW });
+    await seedTestViewers(db, { now: NOW });
     const producer = await db.query<{ id: string }>(`SELECT id FROM organizers WHERE kind = 'producer'`);
     const ins = (await getInsights(db, producer.rows[0].id))!;
     expect(ins.totals.shows).toBe(3);
@@ -179,8 +179,8 @@ describe("測試觀眾", () => {
   });
 
   it("清除測試觀眾，真實觀眾不受影響", async () => {
-    const me = await findOrCreateUser(db, { provider: "line", subject: "U-me" }, testXpub());
-    await seedTestViewers(db, testXpub(), { now: NOW, includeUserId: me.id });
+    const me = await findOrCreateUser(db, { provider: "line", subject: "U-me" });
+    await seedTestViewers(db, { now: NOW, includeUserId: me.id });
     expect(await clearTestViewers(db)).toBe(20);
     const left = await db.query<{ n: string }>(`SELECT count(*) AS n FROM claims`);
     expect(Number(left.rows[0].n)).toBe(10);

@@ -28,21 +28,21 @@ module.exports = {
     version: SOLC_VERSION,
     settings: {
       optimizer: { enabled: true, runs: 200 },
-      // 保守設定：不使用較新的操作碼，確保 Kaia 主網與測試網都能執行。
+      // 保守設定：不使用較新的操作碼，任何以太坊相容鏈都能執行。
       evmVersion: "paris",
     },
   },
   networks: {
-    // Kaia 測試網
-    kairos: {
-      url: process.env.KAIA_RPC_URL || "https://public-en-kairos.node.kaia.io",
-      chainId: 1001,
+    // Base 測試網（Sepolia）。CHAIN_RPC_URL 可改用自己的連線服務，未設定時用 Base 官方公開節點。
+    baseSepolia: {
+      url: process.env.CHAIN_RPC_URL || "https://sepolia.base.org",
+      chainId: 84532,
       accounts,
     },
-    // Kaia 主網（第 1 階段才會用到）
-    kaia: {
-      url: process.env.KAIA_RPC_URL || "https://public-en.node.kaia.io",
-      chainId: 8217,
+    // Base 主網（第 1 階段才會用到；部署腳本會要求多簽管理者）
+    base: {
+      url: process.env.CHAIN_RPC_URL || "https://mainnet.base.org",
+      chainId: 8453,
       accounts,
     },
   },

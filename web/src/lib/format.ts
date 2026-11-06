@@ -44,11 +44,6 @@ export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
-export function explorerTxUrl(txHash: string): string {
-  const base = (process.env.NEXT_PUBLIC_EXPLORER_URL ?? "https://kairos.kaiascan.io").replace(/\/$/, "");
-  return `${base}/tx/${txHash}`;
-}
-
 export function escapeXml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }

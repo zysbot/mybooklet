@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { getDb } from "@/lib/db";
 import { currentUserId } from "@/lib/session";
 import { getBooklet } from "@/lib/booklets";
-import { explorerTxUrl, formatDateTime, formatSerial, formatShowTime } from "@/lib/format";
+import { formatDateTime, formatSerial, formatShowTime } from "@/lib/format";
+import { explorerName, explorerTxUrl, networkLabel } from "@/lib/network";
 import { ProgramCard } from "@/components/ProgramCard";
 import { BookletReader } from "@/components/BookletReader";
 import { getDesignPages } from "@/lib/pages";
@@ -40,6 +41,7 @@ export default async function BookletPage({ params }: Params) {
 
   const { content } = b;
   const minted = b.chainStatus === "minted";
+  const txUrl = minted && b.txHash ? explorerTxUrl(b.txHash) : null;
 
   return (
     <main className="page" style={{ gap: 32 }}>
@@ -124,19 +126,19 @@ export default async function BookletPage({ params }: Params) {
           <div className="cert-row"><span className="muted">收藏編號</span><span>No. {formatSerial(b.serial)}</span></div>
           <div className="cert-row"><span className="muted">領取時間</span><span>{formatDateTime(b.claimedAt)}</span></div>
           {b.holderName && <div className="cert-row"><span className="muted">持有者</span><span>{b.holderName}</span></div>}
-          <div className="cert-row"><span className="muted">區塊鏈</span><span>Kaia</span></div>
+          <div className="cert-row"><span className="muted">區塊鏈</span><span>{networkLabel()}</span></div>
           {b.tokenId && <div className="cert-row"><span className="muted">Token ID</span><span>{b.tokenId}</span></div>}
-          <div className="cert-row"><span className="muted">錢包地址</span><span className="mono">{shortAddress(b.walletAddress)}</span></div>
+          {b.walletAddress && <div className="cert-row"><span className="muted">錢包地址</span><span className="mono">{shortAddress(b.walletAddress)}</span></div>}
         </div>
-        {minted && b.txHash && (
-          <a href={explorerTxUrl(b.txHash)} target="_blank" rel="noreferrer" className="btn btn-dark" style={{ minHeight: 44, fontSize: 14, fontWeight: 500 }}>
-            在 Kaiascan 查看鏈上紀錄
+        {txUrl && (
+          <a href={txUrl} target="_blank" rel="noreferrer" className="btn btn-dark" style={{ minHeight: 44, fontSize: 14, fontWeight: 500 }}>
+            在 {explorerName()} 查看鏈上紀錄
           </a>
         )}
         <p className="small muted" style={{ margin: 0, lineHeight: 1.6 }}>
           {minted
-            ? "這份節目單的收藏紀錄已寫入公開區塊鏈，即使不透過本服務也能查證。"
-            : "收藏紀錄正在寫入區塊鏈，通常幾分鐘內完成，不影響你閱讀節目單。"}
+            ? "這份節目單的收藏紀錄已寫入公開區塊鏈，即使不透過本服務也能查證。鏈上只記日期，不記領取時刻。"
+            : "收藏紀錄會在領取後隔天寫入區塊鏈（每天批次寫入一次），不影響你閱讀節目單。"}
         </p>
       </section>
     </main>

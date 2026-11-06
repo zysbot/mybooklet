@@ -43,7 +43,7 @@ export default async function ClaimPage({ params }: Params) {
         open={closedMessage === null}
         closedMessage={closedMessage}
         loggedIn={!!user}
-        displayName={user?.display_name ?? null}
+        pseudonym={user?.pseudonym ?? null}
         show={{
           title: show.title,
           companyName: show.companyName,

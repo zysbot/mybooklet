@@ -2,14 +2,14 @@
 -- 用法：npm run db:migrate（讀取 DATABASE_URL）
 
 -- 觀眾：以內部編號識別，不綁定登入方式
+-- 不保存 LINE、Google 的名稱與大頭貼；觀眾在吾冊裡以系統化名（pseudonym）出現
 CREATE TABLE IF NOT EXISTS users (
   id              BIGSERIAL PRIMARY KEY,
   line_user_id    TEXT UNIQUE,
   google_sub      TEXT UNIQUE,
   email           TEXT,
-  display_name    TEXT,
-  picture_url     TEXT,
-  -- 代管錢包地址由主公鑰依 users.id 推導；觀眾綁定自有錢包後改為 self
+  pseudonym       TEXT,
+  -- 只有觀眾綁定自有錢包（self）時才有值；代管時每份節目單各有一個地址，見 claims.custody_path
   wallet_address  TEXT,
   wallet_type     TEXT NOT NULL DEFAULT 'custodial' CHECK (wallet_type IN ('custodial', 'self')),
   notify_email    BOOLEAN NOT NULL DEFAULT TRUE,
@@ -178,3 +178,21 @@ CREATE TABLE IF NOT EXISTS favorites (
 );
 
 CREATE INDEX IF NOT EXISTS claims_by_show ON claims (show_id, user_id);
+
+-- ---------------------------------------------------------------
+-- 2026-11-07 隱私改版
+-- ---------------------------------------------------------------
+
+-- 系統化名（不重複）；舊帳號由 scripts/migrate.ts 補上
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pseudonym TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_pseudonym ON users (pseudonym);
+
+-- 不再保存 LINE、Google 的名稱與大頭貼
+ALTER TABLE users DROP COLUMN IF EXISTS display_name;
+ALTER TABLE users DROP COLUMN IF EXISTS picture_url;
+
+-- 一份節目單一個代管地址：隨機推導編號存在領取紀錄上，刪除編號即切斷鏈上對照
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS custody_path TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS claims_custody_path ON claims (custody_path) WHERE custody_path IS NOT NULL;
+-- 舊做法（一人一地址）留下的代管地址不再使用
+UPDATE users SET wallet_address = NULL WHERE wallet_type = 'custodial' AND wallet_address IS NOT NULL;

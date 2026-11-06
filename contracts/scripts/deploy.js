@@ -1,7 +1,7 @@
 // 部署 MyBooklet 合約，並把角色授予各個後端錢包。
 //
 // 用法（在 GitHub Actions 或自己的電腦上）：
-//   DEPLOYER_PRIVATE_KEY=0x... npx hardhat run scripts/deploy.js --network kairos
+//   DEPLOYER_PRIVATE_KEY=0x... npx hardhat run scripts/deploy.js --network baseSepolia
 //
 // 可選環境變數（未設定則全部給部署者，測試網方便用；主網必須分開設定）：
 //   ADMIN_ADDRESS     管理角色（主網應為多簽錢包）
@@ -9,6 +9,9 @@
 //   CURATOR_ADDRESS   場次內容角色
 //   MIGRATOR_ADDRESS  搬遷角色
 const { ethers, network } = require("hardhat");
+
+// 主網：部署前必須設定多簽管理者
+const MAINNET_CHAIN_IDS = [8453]; // Base
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -19,13 +22,13 @@ async function main() {
   const curator = process.env.CURATOR_ADDRESS || deployer.address;
   const migrator = process.env.MIGRATOR_ADDRESS || deployer.address;
 
-  if (network.name === "kaia" && admin === deployer.address) {
+  if (MAINNET_CHAIN_IDS.includes(network.config.chainId) && admin === deployer.address) {
     throw new Error("主網部署必須設定 ADMIN_ADDRESS（多簽錢包），不能由部署錢包擔任管理者");
   }
 
-  console.log(`網路：${network.name}`);
+  console.log(`網路：${network.name}（chainId ${network.config.chainId}）`);
   console.log(`部署錢包：${deployer.address}`);
-  console.log(`餘額：${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} KAIA`);
+  console.log(`餘額：${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} ETH`);
 
   const Booklet = await ethers.getContractFactory("MyBooklet");
   // 先以部署者為管理者部署，授完角色後再把管理權交給 ADMIN_ADDRESS

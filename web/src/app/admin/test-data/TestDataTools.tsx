@@ -7,14 +7,26 @@ import { uploadPdfPages, finalizePdfUpload } from "@/lib/pdf-upload";
 
 type Status = { text: string; state: "wait" | "work" | "ok" | "skip" | "error" };
 
-export function TestDataTools({ realUsers, testViewerCount }: { realUsers: { id: string; label: string }[]; testViewerCount: number }) {
+type ChainStats = { network: string; unconfiguredShows: number; pendingClaims: number; mintedClaims: number };
+
+export function TestDataTools({
+  realUsers,
+  testViewerCount,
+  chain,
+}: {
+  realUsers: { id: string; label: string; current: boolean }[];
+  testViewerCount: number;
+  chain: ChainStats;
+}) {
   const router = useRouter();
   const auto = TEST_CATALOG.filter((t) => !t.manual);
   const manual = TEST_CATALOG.filter((t) => t.manual);
   const [files, setFiles] = useState<Record<string, File>>({});
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [running, setRunning] = useState(false);
-  const [includeUser, setIncludeUser] = useState(realUsers.find((u) => u.label.includes("LINE"))?.id ?? "");
+  const [includeUser, setIncludeUser] = useState((realUsers.find((u) => u.current) ?? realUsers.find((u) => u.label.includes("LINE")))?.id ?? "");
+  const [chainMsg, setChainMsg] = useState<string | null>(null);
+  const [chainBusy, setChainBusy] = useState(false);
   const [seedMsg, setSeedMsg] = useState<string | null>(null);
   const [seedBusy, setSeedBusy] = useState(false);
 
@@ -88,7 +100,7 @@ export function TestDataTools({ realUsers, testViewerCount }: { realUsers: { id:
     const r = await res.json().catch(() => ({}));
     setSeedMsg(
       res.ok
-        ? `完成：${r.viewers} 位測試觀眾，找到 ${r.shows} 檔測試節目，新增 ${r.claims} 份領取、${r.favorites} 個前三喜歡${r.includedUserClaims ? `；你的帳號新增 ${r.includedUserClaims} 份` : ""}${r.skipped ? `；${r.skipped} 份因不在開放時間略過` : ""}。上鏈在背景進行，幾分鐘內完成。`
+        ? `完成：${r.viewers} 位測試觀眾，找到 ${r.shows} 檔測試節目，新增 ${r.claims} 份領取、${r.favorites} 個前三喜歡${r.includedUserClaims ? `；你的帳號新增 ${r.includedUserClaims} 份` : ""}${r.skipped ? `；${r.skipped} 份因不在開放時間略過` : ""}。上鏈會在明天的每日批次進行；要馬上看到，按下方「立即上鏈」。`
         : r.error ?? "失敗"
     );
     setSeedBusy(false);
@@ -103,6 +115,48 @@ export function TestDataTools({ realUsers, testViewerCount }: { realUsers: { id:
     setSeedMsg(res.ok ? `已清除 ${r.removed} 位測試觀眾。` : r.error ?? "失敗");
     setSeedBusy(false);
     router.refresh();
+  }
+
+  async function chainAction(path: string, body?: object) {
+    setChainBusy(true);
+    setChainMsg(null);
+    const res = await fetch(`/api/admin/chain/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const r = await res.json().catch(() => ({}));
+    setChainBusy(false);
+    router.refresh();
+    return { ok: res.ok, r };
+  }
+
+  async function resetChain() {
+    if (!confirm(`換到新合約後才需要這一步。\n\n所有場次會標為「尚未寫入合約」，所有領取回到「待上鏈」，舊鏈上的紀錄不再對應。節目、節目單與收藏都會保留。\n\n確定重設？`)) return;
+    const { ok, r } = await chainAction("reset", { confirm: "RESET" });
+    setChainMsg(ok ? `已重設：${r.shows} 個場次、${r.claims} 份領取。下一步按「把場次寫入合約」。` : r.error ?? "失敗");
+  }
+
+  async function configureAll() {
+    const { ok, r } = await chainAction("configure");
+    if (!ok) return setChainMsg(r.error ?? "失敗");
+    const fails = (r.failed ?? []) as { showId: string; error?: string }[];
+    setChainMsg(
+      `寫入 ${r.done} 個場次。` +
+        (r.remaining > 0 ? `還剩 ${r.remaining} 個，請再按一次。` : "全部完成。") +
+        (fails.length ? `失敗 ${fails.length} 個：${fails[0].error ?? ""}` : "")
+    );
+  }
+
+  async function mintNow() {
+    const { ok, r } = await chainAction("mint");
+    if (!ok) return setChainMsg(r.error ?? "失敗");
+    setChainMsg(
+      `送出 ${r.submitted} 份、完成 ${r.minted} 份` +
+        (r.retried ? `、${r.retried} 份失敗待重試（約 30 秒後可再按）` : "") +
+        (r.failed ? `、${r.failed} 份超過重試次數` : "") +
+        (r.more ? "。還有剩，請再按一次。" : "。")
+    );
   }
 
   const icon = (s?: Status) => (!s ? "・" : s.state === "ok" ? "✓" : s.state === "error" ? "✕" : s.state === "skip" ? "－" : "…");
@@ -164,6 +218,22 @@ export function TestDataTools({ realUsers, testViewerCount }: { realUsers: { id:
           <button type="button" className="btn btn-quiet" onClick={clear} disabled={seedBusy || testViewerCount === 0}>清除測試觀眾</button>
         </div>
         {seedMsg && <p role="status" style={{ margin: 0, lineHeight: 1.7 }}>{seedMsg}</p>}
+      </section>
+
+      <section className="panel" aria-labelledby="chain-title">
+        <h2 id="chain-title">3. 換鏈與上鏈（只限測試網）</h2>
+        <p className="muted" style={{ margin: 0, lineHeight: 1.7, fontSize: 14 }}>
+          目前的鏈：{chain.network}。尚未寫入合約的場次 {chain.unconfiguredShows} 個；待上鏈 {chain.pendingClaims} 份、已上鏈 {chain.mintedClaims} 份。
+          <br />
+          正式運作時每天自動批次上鏈一次（只處理前一天以前的領取）。「立即上鏈」只給測試用，會連今天的領取一起送出。
+        </p>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button type="button" className="btn btn-quiet" onClick={resetChain} disabled={chainBusy}>重設上鏈狀態（換合約後）</button>
+          <button type="button" className="btn btn-dark" onClick={configureAll} disabled={chainBusy || chain.unconfiguredShows === 0}>把場次寫入合約</button>
+          <button type="button" className="btn btn-dark" onClick={mintNow} disabled={chainBusy || chain.pendingClaims === 0}>立即上鏈</button>
+        </div>
+        {chainBusy && <p role="status" className="muted" style={{ margin: 0 }}>處理中，最多約一分鐘，請不要關閉頁面…</p>}
+        {chainMsg && <p role="status" style={{ margin: 0, lineHeight: 1.7 }}>{chainMsg}</p>}
       </section>
     </>
   );

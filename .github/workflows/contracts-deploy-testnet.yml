@@ -1,4 +1,4 @@
-name: 部署合約到 Kaia 測試網
+name: 部署合約到 Base 測試網
 
 # 只能手動觸發：在 GitHub 的 Actions 分頁選這個流程，按 Run workflow。
 on:
@@ -23,4 +23,4 @@ jobs:
         env:
           # 在 repo 的 Settings → Secrets and variables → Actions 設定
           DEPLOYER_PRIVATE_KEY: ${{ secrets.TESTNET_DEPLOYER_PRIVATE_KEY }}
-        run: npx hardhat run scripts/deploy.js --network kairos
+        run: npx hardhat run scripts/deploy.js --network baseSepolia

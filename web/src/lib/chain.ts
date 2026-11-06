@@ -1,8 +1,9 @@
 import { Contract, JsonRpcProvider, Wallet, zeroPadValue, type Log } from "ethers";
+import { currentNetwork } from "./network";
 
 /** 網站用到的合約介面（與 contracts/contracts/MyBooklet.sol 一致） */
 export const BOOKLET_ABI = [
-  "function mintBatch((address to,uint64 showId,uint32 serial,uint64 claimedAt,bytes32 claimId)[] requests)",
+  "function mintBatch((address to,uint64 showId,uint32 serial,uint32 claimedOn,bytes32 claimId)[] requests)",
   "function tokenOfClaim(bytes32 claimId) view returns (uint256)",
   "function setShowURI(uint64 showId, string uri)",
   "function showURI(uint64 showId) view returns (string)",
@@ -15,7 +16,8 @@ export interface MintRequest {
   to: string;
   showId: bigint;
   serial: number;
-  claimedAt: bigint;
+  /** 領取日期，台北時間 YYYYMMDD（合約不記時刻） */
+  claimedOn: number;
   claimId: string; // bytes32
 }
 
@@ -34,6 +36,16 @@ export function claimIdToBytes32(uuid: string): string {
   return zeroPadValue("0x" + hex, 32);
 }
 
+/** 領取時間 → 台北時間的日期 YYYYMMDD，例如 20261121 */
+export function chainDate(d: Date): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value])
+  );
+  return Number(`${p.year}${p.month}${p.day}`);
+}
+
 function requireEnv(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`缺少環境變數 ${name}`);
@@ -41,7 +53,8 @@ function requireEnv(name: string): string {
 }
 
 export function getProvider(): JsonRpcProvider {
-  return new JsonRpcProvider(requireEnv("KAIA_RPC_URL"), Number(process.env.KAIA_CHAIN_ID ?? 1001));
+  const network = currentNetwork();
+  return new JsonRpcProvider(process.env.CHAIN_RPC_URL || network.defaultRpcUrl, network.chainId, { staticNetwork: true });
 }
 
 /** 正式的區塊鏈實作：以鑄造錢包送交易 */

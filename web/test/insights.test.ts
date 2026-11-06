@@ -3,7 +3,7 @@ import type { Db } from "@/lib/db";
 import { findOrCreateUser } from "@/lib/users";
 import { getInsights, mask, joinByInvite, isMember, listMemberships, MIN_GROUP } from "@/lib/insights";
 import { setFavorite, getFavorites, removeFavorite, FavoriteError } from "@/lib/favorites";
-import { createTestDb, testXpub } from "./helpers";
+import { createTestDb } from "./helpers";
 
 /**
  * 測試資料：
@@ -48,7 +48,7 @@ async function build(db: Db) {
 
   const users: string[] = [];
   for (let i = 0; i < 20; i++) {
-    users.push((await findOrCreateUser(db, { provider: "line", subject: `U-secret-${i}`, displayName: `觀眾${i}號`, email: `p${i}@example.com` }, testXpub())).id);
+    users.push((await findOrCreateUser(db, { provider: "line", subject: `U-secret-${i}`, email: `p${i}@example.com` })).id);
   }
   const serial: Record<string, number> = {};
   const claim = async (user: string, showId: string, at: string) => {
@@ -113,6 +113,8 @@ describe("主辦方統計與隱私", () => {
     for (const secret of ["U-secret", "觀眾", "@example.com", "0x", "劇團乙", "劇團丙", "鹽", "雙聲"]) {
       expect(json).not.toContain(secret);
     }
+    const names = await db.query<{ pseudonym: string }>(`SELECT pseudonym FROM users`);
+    for (const { pseudonym } of names.rows) expect(json).not.toContain(pseudonym);
   });
 
   it("觀眾不到 10 人時，整個足跡不提供", async () => {

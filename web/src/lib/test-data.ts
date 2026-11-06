@@ -73,7 +73,7 @@ export interface SeedReport {
  * includeUserId：另外讓這位真實觀眾領取所有測試節目（用來測試自己的收藏冊排列）。
  * 可以重複執行，已領過的不會重複。
  */
-export async function seedTestViewers(db: Db, xpub: string, opts: { includeUserId?: string; now?: Date } = {}): Promise<SeedReport> {
+export async function seedTestViewers(db: Db, opts: { includeUserId?: string; now?: Date } = {}): Promise<SeedReport> {
   const now = opts.now ?? new Date();
   const shows = await findTestShows(db);
   const report: SeedReport = { viewers: 0, shows: shows.length, claims: 0, skipped: 0, favorites: 0, includedUserClaims: 0 };
@@ -95,7 +95,7 @@ export async function seedTestViewers(db: Db, xpub: string, opts: { includeUserI
 
   for (let i = 1; i <= TEST_VIEWER_COUNT; i++) {
     const n = String(i).padStart(2, "0");
-    const user = await findOrCreateUser(db, { provider: "google", subject: `${TEST_VIEWER_PREFIX}${n}`, displayName: `測試觀眾 ${n}` }, xpub);
+    const user = await findOrCreateUser(db, { provider: "google", subject: `${TEST_VIEWER_PREFIX}${n}` });
     report.viewers++;
 
     let picks = shows.filter((s) => r() < (reach.get(s.title) ?? 0.3));

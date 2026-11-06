@@ -22,12 +22,13 @@ interface Props {
   open: boolean;
   closedMessage: string | null;
   loggedIn: boolean;
-  displayName: string | null;
+  /** 系統化名，例如「二樓包廂的水獺」 */
+  pseudonym: string | null;
 }
 
 type Done = { claimId: string; serial: number; alreadyClaimed: boolean };
 
-export function ClaimFlow({ code, show, open, closedMessage, loggedIn, displayName }: Props) {
+export function ClaimFlow({ code, show, open, closedMessage, loggedIn, pseudonym }: Props) {
   const [done, setDone] = useState<Done | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export function ClaimFlow({ code, show, open, closedMessage, loggedIn, displayNa
               <button type="button" className="btn btn-primary" onClick={claim} disabled={busy}>
                 {busy ? "領取中…" : "領取節目單"}
               </button>
-              {displayName && <p className="small muted center" style={{ margin: 0 }}>以「{displayName}」的身分領取</p>}
+              {pseudonym && <p className="small muted center" style={{ margin: 0 }}>以「{pseudonym}」的身分領取</p>}
             </>
           ) : (
             <LoginButtons onLoggedIn={claim} lineLabel="用 LINE 帳號領取" googleHint="沒有 LINE？用 Google 帳號領取" autoLine />
@@ -102,32 +103,7 @@ export function ClaimFlow({ code, show, open, closedMessage, loggedIn, displayNa
 }
 
 function ClaimDone({ show, done }: { show: ShowProps; done: Done }) {
-  const [minted, setMinted] = useState(false);
   const [inLine, setInLine] = useState(false);
-
-  // 每 3 秒查一次收藏憑證寫入了沒（最多 3 分鐘）
-  useEffect(() => {
-    let stopped = false;
-    let tries = 0;
-    const tick = async () => {
-      if (stopped || tries++ > 60) return;
-      try {
-        const res = await fetch(`/api/claims/${done.claimId}/status`);
-        const data = await res.json();
-        if (data.chainStatus === "minted") {
-          setMinted(true);
-          return;
-        }
-      } catch {
-        /* 下一輪再試 */
-      }
-      setTimeout(tick, 3000);
-    };
-    tick();
-    return () => {
-      stopped = true;
-    };
-  }, [done.claimId]);
 
   useEffect(() => {
     getLiff()
@@ -165,18 +141,11 @@ function ClaimDone({ show, done }: { show: ShowProps; done: Done }) {
         </p>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "center" }} aria-live="polite">
-        {minted ? (
-          <span className="chip chip-good">
-            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
-            收藏憑證已寫入 Kaia 區塊鏈
-          </span>
-        ) : (
-          <span className="chip chip-wait">
-            <span className="dot pulse" aria-hidden="true" />
-            收藏憑證寫入區塊鏈中，不影響你閱讀
-          </span>
-        )}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <span className="chip chip-wait">
+          <span className="dot" aria-hidden="true" />
+          收藏憑證明天寫入區塊鏈，不影響你閱讀
+        </span>
       </div>
 
       <div className="stack" style={{ gap: 10 }}>

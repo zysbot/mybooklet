@@ -3,6 +3,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
+import { backfillPseudonyms } from "../src/lib/users";
 
 function loadEnvFile() {
   const file = path.join(__dirname, "..", ".env.local");
@@ -21,6 +22,8 @@ async function main() {
   await client.connect();
   try {
     await client.query(readFileSync(path.join(__dirname, "..", "db", "schema.sql"), "utf8"));
+    const filled = await backfillPseudonyms({ query: (sql, params) => client.query(sql, params as unknown[]) as never });
+    if (filled > 0) console.log(`已為 ${filled} 個舊帳號產生化名`);
     console.log("資料庫結構已更新");
   } finally {
     await client.end();

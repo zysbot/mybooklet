@@ -6,7 +6,6 @@
 // 所有名稱都是虛構的。
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { HDNodeWallet } from "ethers";
 import { createPgDb } from "../src/lib/db";
 import { findOrCreateUser } from "../src/lib/users";
 
@@ -33,7 +32,6 @@ async function main() {
   if (!/@(localhost|127\.0\.0\.1)[:/]/.test(url) && !process.argv.includes("--force")) {
     throw new Error("示範資料只能寫入本機資料庫。若確定要寫入其他資料庫（例如專門的示範資料庫），加上 --force。");
   }
-  const xpub = process.env.WALLET_XPUB ?? HDNodeWallet.createRandom(undefined, "m/44'/60'/0'/0").neuter().extendedKey;
   const db = createPgDb(url);
   const rand = rng(20261106);
 
@@ -60,7 +58,7 @@ async function main() {
 
   const viewers: string[] = [];
   for (let i = 0; i < 60; i++) {
-    viewers.push((await findOrCreateUser(db, { provider: "google", subject: `demo-viewer-${i}`, displayName: `示範觀眾 ${i + 1}` }, xpub)).id);
+    viewers.push((await findOrCreateUser(db, { provider: "google", subject: `demo-viewer-${i}` })).id);
   }
 
   let showCount = 0;

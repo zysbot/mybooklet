@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { GENRES, VENUES, COVER_COLORS } from "@/lib/catalog";
+import { networkLabel } from "@/lib/network";
 import { testClaimWindow } from "@/lib/test-catalog";
 import { PdfUploader } from "../../designs/[id]/PdfUploader";
 
@@ -260,7 +261,7 @@ export function ProductionForm() {
       <button type="submit" className="btn btn-primary" disabled={busy} style={{ alignSelf: "flex-start", minWidth: 200 }}>
         {busy ? "上架中，寫入合約…" : "上架並寫入合約"}
       </button>
-      <p className="small muted" style={{ margin: 0 }}>送出後會把每個場次寫進 Kaia 測試網合約，接著就能上傳節目單 PDF。</p>
+      <p className="small muted" style={{ margin: 0 }}>送出後會把每個場次寫進{networkLabel()}的合約，接著就能上傳節目單 PDF。</p>
     </form>
   );
 }

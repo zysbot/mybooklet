@@ -15,8 +15,9 @@ export async function verifyLineIdToken(idToken: string): Promise<LoginIdentity>
     body: new URLSearchParams({ id_token: idToken, client_id: channelId }),
   });
   if (!res.ok) throw new Error(`LINE 身分驗證失敗（${res.status}）`);
-  const data = (await res.json()) as { sub: string; name?: string; picture?: string; email?: string };
-  return { provider: "line", subject: data.sub, displayName: data.name, pictureUrl: data.picture, email: data.email };
+  // 只取帳號編號；LINE 的名稱與大頭貼不保存（吾冊裡用系統化名）
+  const data = (await res.json()) as { sub: string; email?: string };
+  return { provider: "line", subject: data.sub, email: data.email };
 }
 
 let googleClient: OAuth2Client | undefined;
@@ -30,11 +31,6 @@ export async function verifyGoogleIdToken(idToken: string): Promise<LoginIdentit
   const ticket = await googleClient.verifyIdToken({ idToken, audience: clientId });
   const p = ticket.getPayload();
   if (!p?.sub) throw new Error("Google 身分驗證失敗");
-  return {
-    provider: "google",
-    subject: p.sub,
-    displayName: p.name,
-    pictureUrl: p.picture,
-    email: p.email_verified ? p.email : undefined,
-  };
+  // 只取帳號編號與 Email（寄通知用）；Google 的名稱與大頭貼不保存
+  return { provider: "google", subject: p.sub, email: p.email_verified ? p.email : undefined };
 }

@@ -6,7 +6,8 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /// @title 吾冊 My Booklet 數位節目單
-/// @notice 每一次入場領取鑄造一個 token，記錄場次、入場編號與領取時間。
+/// @notice 每一次入場領取鑄造一個 token，記錄場次、入場編號與領取日期。
+///         只記日期（台北時間 YYYYMMDD），不記時刻：後端每天批次鑄造一次，鏈上看不出領取的確切時間。
 ///         token 不可轉讓（ERC-5192）；只有搬遷角色能把觀眾的 token 移到觀眾本人的新錢包。
 ///         本合約不可升級、不可暫停。
 contract MyBooklet is ERC721, AccessControl {
@@ -28,14 +29,14 @@ contract MyBooklet is ERC721, AccessControl {
     struct Ticket {
         uint64 showId;     // 場次 ID（對應資料庫 shows）
         uint32 serial;     // 入場編號（該場次第幾位領取）
-        uint64 claimedAt;  // 領取時間（Unix 秒，由後端依實際領取時間寫入）
+        uint32 claimedOn;  // 領取日期，台北時間 YYYYMMDD，例如 20261121
     }
 
     struct MintRequest {
         address to;
         uint64 showId;
         uint32 serial;
-        uint64 claimedAt;
+        uint32 claimedOn;  // YYYYMMDD
         bytes32 claimId;   // 資料庫領取紀錄的唯一 ID，防止重複鑄造
     }
 
@@ -73,6 +74,7 @@ contract MyBooklet is ERC721, AccessControl {
     error ShowIsFrozen(uint64 showId);
     error EmptyURI();
     error InvalidRecipient();
+    error InvalidDate(uint32 claimedOn);
 
     constructor(address admin) ERC721(unicode"吾冊 My Booklet", "BOOKLET") {
         if (admin == address(0)) revert InvalidRecipient();
@@ -114,10 +116,11 @@ contract MyBooklet is ERC721, AccessControl {
             }
             if (r.to == address(0)) revert InvalidRecipient();
             if (bytes(showURI[r.showId]).length == 0) revert ShowNotConfigured(r.showId);
+            if (!_isDate(r.claimedOn)) revert InvalidDate(r.claimedOn);
 
             uint256 tokenId = _nextTokenId++;
             tokenOfClaim[r.claimId] = tokenId;
-            _tickets[tokenId] = Ticket({showId: r.showId, serial: r.serial, claimedAt: r.claimedAt});
+            _tickets[tokenId] = Ticket({showId: r.showId, serial: r.serial, claimedOn: r.claimedOn});
             _mint(r.to, tokenId);
 
             emit Locked(tokenId);
@@ -130,7 +133,8 @@ contract MyBooklet is ERC721, AccessControl {
     // ---------------------------------------------------------------
 
     /// @notice 觀眾本人在網站上證明擁有新錢包後，由搬遷角色執行。
-    ///         保留原 tokenId、場次、入場編號與領取時間。
+    ///         保留原 tokenId、場次、入場編號與領取日期。
+    ///         每份節目單各有一個代管地址，所以同一位觀眾的 token 可能分散在多個 from 地址。
     function migrate(uint256[] calldata tokenIds, address to) external onlyRole(MIGRATOR_ROLE) {
         if (to == address(0)) revert InvalidRecipient();
         _migrating = true;
@@ -142,6 +146,15 @@ contract MyBooklet is ERC721, AccessControl {
             emit Migrated(tokenId, from, to);
         }
         _migrating = false;
+    }
+
+    /// 粗略檢查 YYYYMMDD：年 2000–2999、月 1–12、日 1–31。
+    /// 主要防止誤傳 Unix 秒數（10 位數）等非日期的值。
+    function _isDate(uint32 d) private pure returns (bool) {
+        uint32 year = d / 10000;
+        uint32 month = (d / 100) % 100;
+        uint32 day = d % 100;
+        return year >= 2000 && year <= 2999 && month >= 1 && month <= 12 && day >= 1 && day <= 31;
     }
 
     // ---------------------------------------------------------------

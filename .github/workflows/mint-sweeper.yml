@@ -1,14 +1,16 @@
-name: 定時上鏈掃描
+name: 每日上鏈批次
 
-# 每 5 分鐘呼叫網站一次，處理到期的重試與卡住的紀錄。
+# 每天台北時間 04:17 呼叫網站一次，把前一天以前領取的節目單打亂順序、批次上鏈。
+# 一次呼叫最多處理約 45 秒；網站回應 "more": true 時表示還有剩，最多再呼叫 30 次。
 # 需在 repo 的 Actions secrets 設定 SITE_URL 與 CRON_SECRET；未設定時自動略過。
+# 也可以在 Actions 分頁手動按 Run workflow 立即執行（一樣只處理前一天以前的領取）。
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "17 20 * * *" # UTC 20:17 = 台北時間 04:17
   workflow_dispatch:
 
 jobs:
-  sweep:
+  mint:
     runs-on: ubuntu-latest
     steps:
       - name: 呼叫 /api/cron/mint
@@ -20,4 +22,10 @@ jobs:
             echo "尚未設定 SITE_URL 或 CRON_SECRET，略過"
             exit 0
           fi
-          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/cron/mint"
+          for i in $(seq 1 30); do
+            result=$(curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/cron/mint")
+            echo "第 $i 次：$result"
+            if [ "$(echo "$result" | jq -r '.more')" != "true" ]; then
+              break
+            fi
+          done

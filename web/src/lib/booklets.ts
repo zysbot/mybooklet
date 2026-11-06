@@ -49,7 +49,9 @@ export interface BookletDetail extends ShowInfo {
   chainStatus: BookletSummary["chainStatus"];
   tokenId: string | null;
   txHash: string | null;
+  /** 持有者：系統化名 */
   holderName: string | null;
+  /** 這份節目單的鏈上地址；上鏈前為 null */
   walletAddress: string | null;
 }
 
@@ -145,13 +147,12 @@ export async function getBooklet(q: Queryable, claimId: string, userId: string):
       chain_status: BookletSummary["chainStatus"];
       token_id: string | null;
       tx_hash: string | null;
-      display_name: string | null;
+      pseudonym: string | null;
       recipient_address: string | null;
-      wallet_address: string | null;
     }
   >(
     `SELECT c.id AS claim_id, c.serial, c.claimed_at, c.chain_status, c.token_id, c.tx_hash, c.recipient_address,
-            u.display_name, u.wallet_address, ${SHOW_SELECT}
+            u.pseudonym, ${SHOW_SELECT}
        JOIN claims c ON c.show_id = s.id
        JOIN users u ON u.id = c.user_id
       WHERE c.id = $1 AND c.user_id = $2`,
@@ -167,7 +168,7 @@ export async function getBooklet(q: Queryable, claimId: string, userId: string):
     chainStatus: row.chain_status,
     tokenId: row.token_id === null ? null : String(row.token_id),
     txHash: row.tx_hash,
-    holderName: row.display_name,
-    walletAddress: row.recipient_address ?? row.wallet_address,
+    holderName: row.pseudonym,
+    walletAddress: row.recipient_address,
   };
 }

@@ -1,43 +1,89 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { HDNodeWallet, Mnemonic } from "ethers";
 import { claimShow, ClaimError } from "@/lib/claim";
-import { findOrCreateUser } from "@/lib/users";
-import { deriveCustodialAddress } from "@/lib/wallet";
+import { findOrCreateUser, backfillPseudonyms } from "@/lib/users";
+import { deriveCustodialAddress, newCustodyPath } from "@/lib/wallet";
+import { randomPseudonym, PSEUDONYM_SPACE } from "@/lib/pseudonym";
 import type { Db } from "@/lib/db";
 import { createTestDb, seedShow, testXpub, TEST_MNEMONIC } from "./helpers";
 
 const NOW = new Date("2026-11-21T11:00:00Z");
 
-describe("觀眾帳號與代管錢包", () => {
+describe("觀眾帳號與化名", () => {
   let db: Db;
   beforeEach(async () => {
     db = await createTestDb();
   });
 
-  it("第一次登入建立帳號，並推導出代管錢包地址", async () => {
-    const u = await findOrCreateUser(db, { provider: "line", subject: "U123", displayName: "觀眾甲" }, testXpub());
+  it("第一次登入建立帳號並配一個化名；不保存 LINE、Google 的名稱與大頭貼", async () => {
+    const u = await findOrCreateUser(db, { provider: "line", subject: "U123" });
+    expect(u.pseudonym).toMatch(/^.+的.+$/);
     expect(u.wallet_type).toBe("custodial");
-    expect(u.wallet_address).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    expect(u.wallet_address).toBeNull();
+    const cols = await db.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'users'`
+    );
+    const names = cols.rows.map((c) => c.column_name);
+    expect(names).not.toContain("display_name");
+    expect(names).not.toContain("picture_url");
   });
 
-  it("再次登入是同一位觀眾，地址不變", async () => {
-    const a = await findOrCreateUser(db, { provider: "line", subject: "U123" }, testXpub());
-    const b = await findOrCreateUser(db, { provider: "line", subject: "U123", displayName: "改名了" }, testXpub());
+  it("再次登入是同一位觀眾，化名不變；Email 會更新", async () => {
+    const a = await findOrCreateUser(db, { provider: "google", subject: "G1", email: "old@example.com" });
+    const b = await findOrCreateUser(db, { provider: "google", subject: "G1", email: "new@example.com" });
     expect(b.id).toBe(a.id);
-    expect(b.wallet_address).toBe(a.wallet_address);
-    expect(b.display_name).toBe("改名了");
+    expect(b.pseudonym).toBe(a.pseudonym);
+    expect(b.email).toBe("new@example.com");
   });
 
-  it("LINE 與 Google 登入是不同觀眾，地址也不同", async () => {
-    const a = await findOrCreateUser(db, { provider: "line", subject: "U1" }, testXpub());
-    const b = await findOrCreateUser(db, { provider: "google", subject: "G1", email: "x@example.com" }, testXpub());
+  it("LINE 與 Google 登入是不同觀眾", async () => {
+    const a = await findOrCreateUser(db, { provider: "line", subject: "U1" });
+    const b = await findOrCreateUser(db, { provider: "google", subject: "G1", email: "x@example.com" });
     expect(a.id).not.toBe(b.id);
-    expect(a.wallet_address).not.toBe(b.wallet_address);
+  });
+
+  it("化名不重複", async () => {
+    const users = [];
+    for (let i = 0; i < 200; i++) users.push(await findOrCreateUser(db, { provider: "line", subject: "many-" + i }));
+    expect(new Set(users.map((u) => u.pseudonym)).size).toBe(200);
+  });
+
+  it("化名在 12 字以內，可能的組合超過一萬個", () => {
+    for (let i = 0; i < 2000; i++) expect([...randomPseudonym()].length).toBeLessThanOrEqual(12);
+    expect(PSEUDONYM_SPACE).toBeGreaterThan(10000);
+  });
+
+  it("同時大量註冊，每人都拿到不同的化名", async () => {
+    const users = await Promise.all(Array.from({ length: 30 }, (_, i) => findOrCreateUser(db, { provider: "google", subject: "c-" + i })));
+    expect(new Set(users.map((u) => u.pseudonym)).size).toBe(30);
+  });
+
+  it("舊帳號（沒有化名）在資料庫更新時補上", async () => {
+    await db.query(`INSERT INTO users (line_user_id) VALUES ('old-1'), ('old-2')`);
+    expect(await backfillPseudonyms(db)).toBe(2);
+    const r = await db.query<{ pseudonym: string | null }>(`SELECT pseudonym FROM users`);
+    expect(r.rows.every((x) => x.pseudonym)).toBe(true);
+    expect(await backfillPseudonyms(db)).toBe(0);
+  });
+});
+
+describe("代管地址：一份節目單一個地址", () => {
+  it("編號三層、每層隨機，每次都不同", () => {
+    const paths = new Set(Array.from({ length: 1000 }, () => newCustodyPath()));
+    expect(paths.size).toBe(1000);
+    for (const p of paths) expect(p).toMatch(/^\d+\/\d+\/\d+$/);
   });
 
   it("伺服器只用公鑰推導出的地址，與離線助記詞推導的私鑰地址一致", () => {
-    const fromPrivate = HDNodeWallet.fromMnemonic(Mnemonic.fromPhrase(TEST_MNEMONIC), "m/44'/60'/0'/0/7").address;
-    expect(deriveCustodialAddress(testXpub(), 7)).toBe(fromPrivate);
+    const path = "1834620771/90214477/2044012399";
+    const fromPrivate = HDNodeWallet.fromMnemonic(Mnemonic.fromPhrase(TEST_MNEMONIC), `m/44'/60'/0'/0/${path}`).address;
+    expect(deriveCustodialAddress(testXpub(), path)).toBe(fromPrivate);
+  });
+
+  it("拒絕格式錯誤或超出範圍的編號", () => {
+    for (const bad of ["1/2", "1/2/3/4", "a/b/c", "1/2/2147483648", "-1/2/3", ""]) {
+      expect(() => deriveCustodialAddress(testXpub(), bad)).toThrow();
+    }
   });
 });
 
@@ -48,8 +94,8 @@ describe("掃碼領取", () => {
 
   beforeEach(async () => {
     db = await createTestDb();
-    userA = (await findOrCreateUser(db, { provider: "line", subject: "UA" }, testXpub())).id;
-    userB = (await findOrCreateUser(db, { provider: "google", subject: "GB" }, testXpub())).id;
+    userA = (await findOrCreateUser(db, { provider: "line", subject: "UA" })).id;
+    userB = (await findOrCreateUser(db, { provider: "google", subject: "GB" })).id;
   });
 
   it("依領取順序配發入場編號", async () => {
@@ -105,7 +151,7 @@ describe("掃碼領取", () => {
   it("同時大量領取，編號連續且不重複", async () => {
     const { code, showId } = await seedShow(db);
     const users = await Promise.all(
-      Array.from({ length: 30 }, (_, i) => findOrCreateUser(db, { provider: "line", subject: "bulk-" + i }, testXpub()))
+      Array.from({ length: 30 }, (_, i) => findOrCreateUser(db, { provider: "line", subject: "bulk-" + i }))
     );
     const results = await Promise.all(users.map((u) => claimShow(db, u.id, code, NOW)));
     const serials = results.map((r) => r.serial).sort((a, b) => a - b);

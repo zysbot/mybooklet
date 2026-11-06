@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { verifyLineIdToken } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { findOrCreateUser } from "@/lib/users";
-import { getWalletXpub } from "@/lib/wallet";
 import { setSession } from "@/lib/session";
 
 export async function POST(req: Request) {
@@ -15,7 +14,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "LINE 身分驗證失敗，請重新登入" }, { status: 401 });
   }
-  const user = await findOrCreateUser(getDb(), identity, getWalletXpub());
+  const user = await findOrCreateUser(getDb(), identity);
   await setSession(user.id);
-  return NextResponse.json({ ok: true, displayName: user.display_name });
+  return NextResponse.json({ ok: true, pseudonym: user.pseudonym });
 }
