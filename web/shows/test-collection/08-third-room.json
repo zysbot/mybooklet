@@ -1,0 +1,31 @@
+{
+  "organizer": {
+    "name": "小島實驗室"
+  },
+  "production": {
+    "title": "第三個房間",
+    "companyName": "小島實驗室",
+    "genre": "實驗表演",
+    "content": {
+      "intro": "觀眾被分成三組，分別進入三個房間。每個房間裡發生的是同一件事，只是你永遠看不到另外兩個版本。演出結束後，請在大廳和陌生人交換你看到的故事。",
+      "duration": "約 90 分鐘"
+    }
+  },
+  "designs": [
+    {
+      "key": "regular",
+      "label": "一般場",
+      "coverColor": "#111111"
+    }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    {
+      "startsAt": "2024-10-05T20:00:00+08:00",
+      "venue": "河岸小劇場",
+      "opensMinutesBefore": 90,
+      "closesMinutesAfter": 1140420,
+      "maxClaims": 300
+    }
+  ]
+}

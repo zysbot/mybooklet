@@ -1,0 +1,31 @@
+{
+  "organizer": {
+    "name": "小紙船兒童劇團"
+  },
+  "production": {
+    "title": "月亮忘了關燈",
+    "companyName": "小紙船兒童劇團",
+    "genre": "兒童劇",
+    "content": {
+      "intro": "月亮每天晚上都要記得關燈，可是今天她忘了！小狐狸、貓頭鷹和不想睡覺的小女孩，要一起去天上提醒她。適合 4 歲以上的小觀眾與大朋友。",
+      "duration": "約 90 分鐘"
+    }
+  },
+  "designs": [
+    {
+      "key": "regular",
+      "label": "一般場",
+      "coverColor": "#FF7A59"
+    }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    {
+      "startsAt": "2026-08-09T14:30:00+08:00",
+      "venue": "山城藝文中心",
+      "opensMinutesBefore": 90,
+      "closesMinutesAfter": 171630,
+      "maxClaims": 300
+    }
+  ]
+}

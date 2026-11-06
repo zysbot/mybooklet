@@ -1,0 +1,31 @@
+{
+  "organizer": {
+    "name": "鹽舞團"
+  },
+  "production": {
+    "title": "鹽的聲音",
+    "companyName": "鹽舞團",
+    "genre": "舞蹈",
+    "content": {
+      "intro": "五位舞者在鋪滿粗鹽的舞台上移動，腳步摩擦的聲音被即時收音、放大，成為作品唯一的配樂。身體留下的痕跡會被下一段動作抹去，像潮水來回。",
+      "duration": "約 90 分鐘"
+    }
+  },
+  "designs": [
+    {
+      "key": "regular",
+      "label": "一般場",
+      "coverColor": "#7A5518"
+    }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    {
+      "startsAt": "2026-09-13T19:30:00+08:00",
+      "venue": "山城藝文中心",
+      "opensMinutesBefore": 90,
+      "closesMinutesAfter": 120930,
+      "maxClaims": 300
+    }
+  ]
+}

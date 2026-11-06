@@ -1,0 +1,32 @@
+{
+  "organizer": {
+    "name": "潮間帶劇團"
+  },
+  "production": {
+    "title": "港口女孩",
+    "companyName": "潮間帶劇團",
+    "genre": "音樂劇",
+    "content": {
+      "intro": "1960 年代的港口，一位在罐頭工廠工作的女孩，夢想站上碼頭邊那間歌廳的舞台。全新原創音樂劇，十八首原創歌曲，十二位演員、六人現場樂隊。",
+      "duration": "約 90 分鐘"
+    },
+    "producer": "港邊製作"
+  },
+  "designs": [
+    {
+      "key": "regular",
+      "label": "一般場",
+      "coverColor": "#1B7F72"
+    }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    {
+      "startsAt": "2027-02-14T19:30:00+08:00",
+      "venue": "海港劇場",
+      "opensMinutesBefore": 145470,
+      "closesMinutesAfter": 240,
+      "maxClaims": 300
+    }
+  ]
+}

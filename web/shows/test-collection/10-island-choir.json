@@ -1,0 +1,31 @@
+{
+  "organizer": {
+    "name": "南風合唱團"
+  },
+  "production": {
+    "title": "島嶼合唱",
+    "companyName": "南風合唱團",
+    "genre": "音樂",
+    "content": {
+      "intro": "四十位團員，唱遍島嶼的山、海與城市。上半場為委託創作的新曲首演，下半場收錄各族群的傳統歌謠新編。",
+      "duration": "約 90 分鐘"
+    }
+  },
+  "designs": [
+    {
+      "key": "regular",
+      "label": "一般場",
+      "coverColor": "#4E7D3A"
+    }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    {
+      "startsAt": "2026-03-28T19:30:00+08:00",
+      "venue": "城南大戲院",
+      "opensMinutesBefore": 90,
+      "closesMinutesAfter": 364290,
+      "maxClaims": 300
+    }
+  ]
+}

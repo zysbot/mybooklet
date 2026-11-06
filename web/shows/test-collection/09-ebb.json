@@ -1,0 +1,31 @@
+{
+  "organizer": {
+    "name": "鹽舞團"
+  },
+  "production": {
+    "title": "退潮",
+    "companyName": "鹽舞團",
+    "genre": "舞蹈",
+    "content": {
+      "intro": "一支關於離開的舞。六位舞者從舞台邊緣慢慢退去，直到最後一刻才發現，被留下的其實是看的人。",
+      "duration": "約 90 分鐘"
+    }
+  },
+  "designs": [
+    {
+      "key": "regular",
+      "label": "一般場",
+      "coverColor": "#1E2326"
+    }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    {
+      "startsAt": "2025-12-06T19:30:00+08:00",
+      "venue": "海港劇場",
+      "opensMinutesBefore": 90,
+      "closesMinutesAfter": 525570,
+      "maxClaims": 300
+    }
+  ]
+}
