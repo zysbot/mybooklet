@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ProgramCard } from "@/components/ProgramCard";
 import { LoginButtons, closeLiffWindow } from "@/components/LoginButtons";
+import { getLiff } from "@/lib/liff-client";
 import { formatSerial } from "@/lib/format";
 
 interface ShowProps {
@@ -129,8 +130,8 @@ function ClaimDone({ show, done }: { show: ShowProps; done: Done }) {
   }, [done.claimId]);
 
   useEffect(() => {
-    import("@line/liff")
-      .then(({ default: liff }) => setInLine(liff.isInClient()))
+    getLiff()
+      .then((liff) => setInLine(liff.isInClient()))
       .catch(() => setInLine(false));
   }, []);
 

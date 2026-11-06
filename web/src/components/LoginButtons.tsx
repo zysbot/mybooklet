@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getLiff, LIFF_ID } from "@/lib/liff-client";
 
 type Liff = typeof import("@line/liff").default;
 
@@ -17,7 +18,6 @@ declare global {
   }
 }
 
-const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID;
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 interface Props {
@@ -41,7 +41,7 @@ async function post(url: string, body: unknown) {
 /** 在 LINE 裡打開時可以「回到 LINE」 */
 export async function closeLiffWindow(): Promise<boolean> {
   if (!LIFF_ID) return false;
-  const liff = (await import("@line/liff")).default;
+  const liff = await getLiff();
   if (liff.isInClient()) {
     liff.closeWindow();
     return true;
@@ -59,8 +59,14 @@ export function LoginButtons({ onLoggedIn, lineLabel, googleHint, autoLine }: Pr
   const finishLine = useCallback(
     async (liff: Liff) => {
       const idToken = liff.getIDToken();
-      if (!idToken) throw new Error("無法取得 LINE 登入資訊，請重新登入");
-      await post("/api/auth/line", { idToken });
+      try {
+        if (!idToken) throw new Error("無法取得 LINE 登入資訊");
+        await post("/api/auth/line", { idToken });
+      } catch {
+        // 登入資訊過期或無效：清掉 LINE 的登入狀態，下次按按鈕會重新登入
+        liff.logout();
+        throw new Error("LINE 登入已過期，請再按一次登入");
+      }
       onLoggedIn();
     },
     [onLoggedIn]
@@ -71,8 +77,7 @@ export function LoginButtons({ onLoggedIn, lineLabel, googleHint, autoLine }: Pr
     if (!LIFF_ID || started.current) return;
     started.current = true;
     (async () => {
-      const liff = (await import("@line/liff")).default;
-      await liff.init({ liffId: LIFF_ID });
+      const liff = await getLiff();
       liffRef.current = liff;
       if (autoLine && liff.isLoggedIn()) {
         setBusy(true);

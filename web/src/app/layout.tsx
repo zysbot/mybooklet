@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { LiffBootstrap } from "@/components/LiffBootstrap";
 
 export const metadata: Metadata = {
   title: "吾冊 My Booklet",
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <LiffBootstrap />
+        {children}
+      </body>
     </html>
   );
 }
