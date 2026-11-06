@@ -142,3 +142,39 @@ CREATE TABLE IF NOT EXISTS design_pages (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (design_id, upload_id, page_no)
 );
+
+-- ---------------------------------------------------------------
+-- 主辦方：劇團、製作方、場館都是「組織」，各自登入看自己的統計
+-- ---------------------------------------------------------------
+
+ALTER TABLE organizers ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'company';
+DO $$ BEGIN
+  ALTER TABLE organizers ADD CONSTRAINT organizers_kind_check CHECK (kind IN ('company', 'producer', 'venue'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+-- 邀請連結：營運方產生後交給組織的工作人員，用來加入後台
+ALTER TABLE organizers ADD COLUMN IF NOT EXISTS invite_token TEXT UNIQUE;
+
+-- 節目的製作方（可與演出團隊不同）；場次的場館組織（venue 欄位仍保留顯示用名稱）
+ALTER TABLE productions ADD COLUMN IF NOT EXISTS producer_id BIGINT REFERENCES organizers(id);
+ALTER TABLE shows ADD COLUMN IF NOT EXISTS venue_id BIGINT REFERENCES organizers(id);
+
+-- 組織的後台成員（用 LINE 或 Google 登入的帳號）
+CREATE TABLE IF NOT EXISTS organizer_members (
+  organizer_id  BIGINT NOT NULL REFERENCES organizers(id),
+  user_id       BIGINT NOT NULL REFERENCES users(id),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (organizer_id, user_id)
+);
+
+-- 觀眾的前三喜歡：每個名次一份，同一份節目單只能佔一個名次
+CREATE TABLE IF NOT EXISTS favorites (
+  user_id     BIGINT NOT NULL REFERENCES users(id),
+  claim_id    UUID NOT NULL REFERENCES claims(id),
+  rank        SMALLINT NOT NULL CHECK (rank BETWEEN 1 AND 3),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, rank),
+  UNIQUE (user_id, claim_id)
+);
+
+CREATE INDEX IF NOT EXISTS claims_by_show ON claims (show_id, user_id);

@@ -52,6 +52,8 @@ export default async function MyCollectionPage() {
             title: b.title,
             companyName: b.companyName,
             genre: b.genre,
+            venue: b.venue,
+            favoriteRank: b.favoriteRank,
             startsAt: b.startsAt.toISOString(),
             serial: b.serial,
             color: b.coverColor,

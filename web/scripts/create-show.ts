@@ -16,7 +16,8 @@ interface Content { intro?: string; directorNote?: string; duration?: string; cr
 
 interface ShowFile {
   organizer: { name: string; contactEmail?: string };
-  production: { title: string; companyName: string; genre?: string; content: Content };
+  /** producer：製作方名稱（與演出團隊不同時才填） */
+  production: { title: string; companyName: string; genre?: string; producer?: string; content: Content };
   /** 卡面版本；content 會覆蓋節目的共用內容（可只寫要不同的欄位） */
   designs: { key: string; label: string; coverColor: string; content?: Content }[];
   /** 預設卡面版本的 key */
@@ -68,13 +69,18 @@ async function main() {
   const created: { showId: string; code: string; startsAt: string; designLabel: string }[] = [];
   try {
     await db.query("BEGIN");
-    const org = await db.query(`INSERT INTO organizers (name, contact_email) VALUES ($1, $2) RETURNING id`, [
-      spec.organizer.name,
-      spec.organizer.contactEmail ?? null,
-    ]);
+    // 同名同類型的組織只建一次（劇團、製作方、場館）
+    const orgId = async (name: string, kind: "company" | "producer" | "venue", contact?: string) => {
+      const found = await db.query(`SELECT id FROM organizers WHERE name = $1 AND kind = $2 ORDER BY id LIMIT 1`, [name, kind]);
+      if (found.rows[0]) return found.rows[0].id as string;
+      const r = await db.query(`INSERT INTO organizers (name, kind, contact_email) VALUES ($1, $2, $3) RETURNING id`, [name, kind, contact ?? null]);
+      return r.rows[0].id as string;
+    };
+    const companyId = await orgId(spec.organizer.name, "company", spec.organizer.contactEmail);
+    const producerId = spec.production.producer ? await orgId(spec.production.producer, "producer") : null;
     const prod = await db.query(
-      `INSERT INTO productions (organizer_id, title, company_name, genre) VALUES ($1, $2, $3, $4) RETURNING id`,
-      [org.rows[0].id, spec.production.title, spec.production.companyName, spec.production.genre ?? null]
+      `INSERT INTO productions (organizer_id, title, company_name, genre, producer_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [companyId, spec.production.title, spec.production.companyName, spec.production.genre ?? null, producerId]
     );
     const productionId = prod.rows[0].id;
 
@@ -98,9 +104,10 @@ async function main() {
       const design = s.design ? designIds[s.design] : undefined;
       if (s.design && !design) throw new Error(`找不到卡面版本 ${s.design}`);
 
+      const venueId = await orgId(s.venue, "venue");
       const show = await db.query(
-        `INSERT INTO shows (production_id, design_id, starts_at, venue) VALUES ($1, $2, $3, $4) RETURNING id`,
-        [productionId, design?.id ?? null, startsAt, s.venue]
+        `INSERT INTO shows (production_id, design_id, starts_at, venue, venue_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [productionId, design?.id ?? null, startsAt, s.venue, venueId]
       );
       const showId: string = show.rows[0].id;
       await db.query(`UPDATE shows SET metadata_uri = $2 WHERE id = $1`, [showId, `${site}/api/metadata/${showId}`]);

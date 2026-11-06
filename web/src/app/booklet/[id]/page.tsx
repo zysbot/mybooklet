@@ -8,6 +8,8 @@ import { explorerTxUrl, formatDateTime, formatSerial, formatShowTime } from "@/l
 import { ProgramCard } from "@/components/ProgramCard";
 import { BookletReader } from "@/components/BookletReader";
 import { getDesignPages } from "@/lib/pages";
+import { getFavorites } from "@/lib/favorites";
+import { FavoritePicker } from "@/components/FavoritePicker";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,10 @@ export default async function BookletPage({ params }: Params) {
   const db = getDb();
   const b = await getBooklet(db, id, userId);
   if (!b) notFound();
-  const pages = b.pageCount > 0 ? await getDesignPages(db, b.designId) : [];
+  const [pages, favorites] = await Promise.all([
+    b.pageCount > 0 ? getDesignPages(db, b.designId) : Promise.resolve([]),
+    getFavorites(db, userId),
+  ]);
 
   const { content } = b;
   const minted = b.chainStatus === "minted";
@@ -65,6 +70,8 @@ export default async function BookletPage({ params }: Params) {
           {content.duration && <div className="row"><span className="row-label">長度</span><span>{content.duration}</span></div>}
         </div>
       </div>
+
+      <FavoritePicker claimId={b.claimId} title={b.title} initial={favorites} />
 
       <hr className="rule" />
 

@@ -10,7 +10,8 @@
     "create-show": "tsx scripts/create-show.ts",
     "db:migrate": "tsx scripts/migrate.ts",
     "keys:generate": "tsx scripts/generate-keys.ts",
-    "postinstall": "node scripts/copy-pdf-worker.mjs"
+    "postinstall": "node scripts/copy-pdf-worker.mjs",
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "license": "ISC",
   "dependencies": {

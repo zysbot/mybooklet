@@ -30,13 +30,15 @@ npm run build
 | `/api/claim` | 領取：只寫資料庫、立即回應，回應後在背景通知與上鏈 |
 | `/api/cron/mint` | 定時掃描：重試與對帳（GitHub Actions 每 5 分鐘呼叫） |
 | `/api/metadata/<場次>`、`/api/cover/<場次>` | token 的 metadata 與卡面圖 |
-| `/admin` | 營運後台：上傳節目單 PDF（瀏覽器端轉成每頁圖片），查看各場次領取與上鏈數 |
+| `/admin` | 營運後台：上傳節目單 PDF（瀏覽器端轉成每頁圖片），查看各場次領取與上鏈數，產生主辦方邀請連結 |
+| `/org/<組織>` | 主辦方後台：劇團、製作方、場館各自的領取統計與觀眾足跡（只給統計；少於 10 人的分群隱藏） |
 
 | 指令 | 用途 |
 | --- | --- |
 | `npm run keys:generate` | 產生觀眾錢包主助記詞與營運錢包 |
 | `npm run db:migrate` | 建立或更新資料庫結構 |
 | `npm run create-show -- shows/xxx.json` | 上架節目、寫入合約、產生 QR code |
+| `npm run seed:demo` | 建立示範資料（只限本機或專門的示範資料庫） |
 
 上鏈流程：領取時只寫資料庫（狀態 pending）→ 背景程序批次鑄造（submitted → minted）→ 失敗依次數延後重試，超過上限標為 failed。代管錢包地址由延伸公鑰推導，伺服器不持有觀眾錢包私鑰。
 

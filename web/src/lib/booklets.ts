@@ -33,6 +33,9 @@ export interface BookletSummary {
   title: string;
   companyName: string;
   genre: string | null;
+  venue: string;
+  /** 前三喜歡的名次；沒有標記為 null */
+  favoriteRank: number | null;
   startsAt: Date;
   serial: number;
   coverColor: string;
@@ -108,9 +111,10 @@ export async function getShow(q: Queryable, showId: string): Promise<ShowInfo | 
 }
 
 export async function listUserBooklets(q: Queryable, userId: string): Promise<BookletSummary[]> {
-  const r = await q.query<ShowRow & { claim_id: string; serial: number; chain_status: BookletSummary["chainStatus"] }>(
-    `SELECT c.id AS claim_id, c.serial, c.chain_status, ${SHOW_SELECT}
+  const r = await q.query<ShowRow & { claim_id: string; serial: number; chain_status: BookletSummary["chainStatus"]; fav_rank: number | null }>(
+    `SELECT c.id AS claim_id, c.serial, c.chain_status, f.rank AS fav_rank, ${SHOW_SELECT}
        JOIN claims c ON c.show_id = s.id
+       LEFT JOIN favorites f ON f.claim_id = c.id
       WHERE c.user_id = $1
       ORDER BY s.starts_at DESC`,
     [userId]
@@ -121,6 +125,8 @@ export async function listUserBooklets(q: Queryable, userId: string): Promise<Bo
     title: row.title,
     companyName: row.company_name,
     genre: row.genre,
+    venue: row.venue,
+    favoriteRank: row.fav_rank === null ? null : Number(row.fav_rank),
     startsAt: new Date(row.starts_at),
     serial: Number(row.serial),
     coverColor: row.cover_color,

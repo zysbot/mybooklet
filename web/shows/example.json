@@ -4,6 +4,7 @@
     "title": "雨季之前",
     "companyName": "[劇團名稱]",
     "genre": "戲劇",
+    "producer": "[製作方名稱，與劇團相同可刪除這行]",
     "content": {
       "intro": "[由劇團提供的節目介紹：故事大綱、創作緣起與主題。]",
       "directorNote": "[導演寫給觀眾的文字。]",
