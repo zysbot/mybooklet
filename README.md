@@ -30,6 +30,8 @@ npm run build
 | `/api/claim` | 領取：只寫資料庫、立即回應，回應後在背景通知與上鏈 |
 | `/api/cron/mint` | 定時掃描：重試與對帳（GitHub Actions 每 5 分鐘呼叫） |
 | `/api/metadata/<場次>`、`/api/cover/<場次>` | token 的 metadata 與卡面圖 |
+| `/admin/productions/new` | 上架表單：節目資訊、類型與場館選單、多場次、卡面版本、PDF；送出時寫入合約並產生 QR code |
+| `/admin/test-data` | 測試資料：批次上架 8 檔測試節目、建立 20 位測試觀眾（正式上線前清除） |
 | `/admin` | 營運後台：上傳節目單 PDF（瀏覽器端轉成每頁圖片），查看各場次領取與上鏈數，產生主辦方邀請連結 |
 | `/org/<組織>` | 主辦方後台：劇團、製作方、場館各自的領取統計與觀眾足跡（只給統計；少於 10 人的分群隱藏） |
 

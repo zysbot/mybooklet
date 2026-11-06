@@ -125,7 +125,7 @@ export async function getInsights(q: Queryable, organizerId: string): Promise<In
     q.query<{ genre: string; n: string }>(
       `SELECT p.genre, count(DISTINCT c.user_id) AS n
          FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
-        WHERE c.user_id IN (${audience}) AND NOT (${cond}) AND p.genre IS NOT NULL
+        WHERE c.user_id IN (${audience}) AND NOT COALESCE(${cond}, FALSE) AND p.genre IS NOT NULL
         GROUP BY p.genre ORDER BY n DESC`,
       [id]
     ),
@@ -133,7 +133,7 @@ export async function getInsights(q: Queryable, organizerId: string): Promise<In
     q.query<{ venue: string; n: string }>(
       `SELECT s.venue, count(DISTINCT c.user_id) AS n
          FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
-        WHERE c.user_id IN (${audience}) AND NOT (${cond})
+        WHERE c.user_id IN (${audience}) AND NOT COALESCE(${cond}, FALSE)
           ${organizer.kind === "venue" ? "AND (s.venue_id IS NULL OR s.venue_id <> $1)" : ""}
         GROUP BY s.venue ORDER BY n DESC LIMIT 8`,
       [id]

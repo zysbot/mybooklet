@@ -6,6 +6,7 @@ import { getDb } from "@/lib/db";
 import { formatDateTime, formatShowTime } from "@/lib/format";
 import { LogoutAdmin } from "./LogoutAdmin";
 import { InviteButton } from "./InviteButton";
+import { ConfigureButton } from "./ConfigureButton";
 import { ORG_KIND_LABEL, type OrgKind } from "@/lib/insights";
 import "./admin.css";
 
@@ -47,7 +48,11 @@ export default async function AdminHome() {
           <h1>吾冊 營運後台</h1>
           <span className="admin-tag">ADMIN</span>
         </div>
-        <LogoutAdmin />
+        <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/admin/productions/new" className="link-btn" style={{ background: "var(--ink)", color: "var(--paper)" }}>＋ 上架節目</Link>
+          <Link href="/admin/test-data" className="link-btn">測試資料</Link>
+          <LogoutAdmin />
+        </span>
       </div>
 
       {orgs.rows.length > 0 && (
@@ -84,7 +89,7 @@ export default async function AdminHome() {
       {productions.rows.length === 0 && (
         <div className="panel">
           <p className="muted" style={{ margin: 0, lineHeight: 1.7 }}>
-            還沒有節目。先用 <code>npm run create-show -- shows/節目.json</code> 上架節目，再回來上傳節目單 PDF。
+            還沒有節目。按右上角「＋ 上架節目」開始。
           </p>
         </div>
       )}
@@ -134,7 +139,7 @@ export default async function AdminHome() {
               <table>
                 <caption className="small muted" style={{ textAlign: "left", paddingBottom: 6 }}>場次</caption>
                 <thead>
-                  <tr><th>演出時間</th><th>場館</th><th>卡面</th><th>已領取</th><th>已上鏈</th><th>領取頁</th></tr>
+                  <tr><th>演出時間</th><th>場館</th><th>卡面</th><th>已領取</th><th>已上鏈</th><th>領取頁</th><th aria-label="QR code" /></tr>
                 </thead>
                 <tbody>
                   {pShows.map((s) => (
@@ -143,8 +148,9 @@ export default async function AdminHome() {
                       <td>{s.venue}</td>
                       <td>{s.design_label}</td>
                       <td>{Number(s.claims)}</td>
-                      <td>{s.chain_configured ? Number(s.minted) : <span className="status-none">合約未設定</span>}</td>
+                      <td>{s.chain_configured ? Number(s.minted) : <ConfigureButton showId={String(s.id)} />}</td>
                       <td>{s.code ? <a href={`/c/${s.code}`} target="_blank" rel="noreferrer">/c/{s.code}</a> : "—"}</td>
+                      <td>{s.code && <a className="link-btn" href={`/api/admin/shows/${s.id}/qr`}>QR</a>}</td>
                     </tr>
                   ))}
                 </tbody>
