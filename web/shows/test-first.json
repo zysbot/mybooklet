@@ -1,0 +1,29 @@
+{
+  "organizer": { "name": "吾冊測試劇團" },
+  "production": {
+    "title": "吾冊試映",
+    "companyName": "吾冊測試劇團",
+    "genre": "戲劇",
+    "content": {
+      "intro": "這是吾冊 My Booklet 的第一個測試場次，用來確認掃碼、LINE 登入、領取與上鏈的完整流程。",
+      "directorNote": "（測試內容）",
+      "duration": "約 90 分鐘",
+      "credits": [{ "role": "製作", "names": "吾冊 My Booklet" }]
+    }
+  },
+  "designs": [
+    { "key": "regular", "label": "一般場", "coverColor": "#23305C" },
+    { "key": "premiere", "label": "首演場", "coverColor": "#8A3B22" }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    {
+      "startsAt": "2026-11-07T19:30:00+08:00",
+      "venue": "吾冊測試場館",
+      "design": "premiere",
+      "opensMinutesBefore": 2880,
+      "closesMinutesAfter": 10080,
+      "maxClaims": 50
+    }
+  ]
+}
