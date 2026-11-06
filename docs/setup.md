@@ -48,21 +48,29 @@
 
 ## 5. LINE（約 20 分鐘）
 
-先在 https://manager.line.biz 建立 LINE 官方帳號「吾冊 My Booklet」，再到 https://developers.line.biz/console/ ：
+**A. 官方帳號與 Messaging API**（LINE 規定 Messaging API 必須從官方帳號啟用）
 
-1. 建立一個 **Provider**（名稱：吾冊）。
-2. 在這個 Provider 底下建立 **Messaging API channel**，連結剛剛的官方帳號。
+1. 到 https://manager.line.biz 用你的 LINE 帳號登入，建立 LINE 官方帳號「吾冊 My Booklet」。
+2. 進入帳號管理頁 → 右上角 **設定** → 左側 **Messaging API** → **啟用 Messaging API**。
+3. 選擇或建立 **Provider**，名稱填「吾冊」。
+
+**B. LINE Developers**
+
+到 https://developers.line.biz/console/ ，用同一個 LINE 帳號登入，點進「吾冊」這個 Provider：
+
+1. 點剛才自動產生的 **Messaging API channel**：
    - **Messaging API** 分頁最下方，發行 **Channel access token (long-lived)** → 這是 `LINE_MESSAGING_ACCESS_TOKEN`。
-3. 在同一個 Provider 底下建立 **LINE Login channel**。
-   - **Basic settings**：記下 **Channel ID** → 這是 `LINE_LOGIN_CHANNEL_ID`。
-   - **Basic settings → Linked LINE Official Account**：選吾冊的官方帳號（登入時才會出現「加入好友」選項）。
+2. 在同一個 Provider 底下按 **Create a new channel** → **LINE Login**：
+   - App types 勾選 **Web app**。
+   - 建立後在 **Basic settings** 記下 **Channel ID** → 這是 `LINE_LOGIN_CHANNEL_ID`。
+   - **Basic settings → Linked LINE Official Account**：選「吾冊 My Booklet」（登入時才會出現「加入好友」選項）。
    - **LIFF** 分頁 → **Add**：
      - Size：Full
-     - Endpoint URL：`https://mybooklet.party`
+     - Endpoint URL：網站網址（先用 Vercel 給的網址也可以，之後再改成 `https://mybooklet.party`）
      - Scopes：勾選 `openid`、`profile`
      - Add friend option：**On (Aggressive)**
      - 建立後記下 **LIFF ID** → 這是 `NEXT_PUBLIC_LIFF_ID`。
-4. 兩個 channel 要按 **Publish** 改成公開狀態，一般觀眾才能登入。
+3. LINE Login channel 預設是 **Developing**，只有你自己能登入。要給一般觀眾使用時，按 **Publish** 改成公開。
 
 ## 6. Google 登入（約 10 分鐘）
 
