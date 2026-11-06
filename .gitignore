@@ -1,0 +1,18 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/coverage/
+contracts/coverage.json
+
+# Next.js
+web/.next/
+web/out/
+web/next-env.d.ts
+
+.DS_Store

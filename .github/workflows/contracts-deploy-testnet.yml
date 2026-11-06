@@ -1,0 +1,26 @@
+name: 部署合約到 Kaia 測試網
+
+# 只能手動觸發：在 GitHub 的 Actions 分頁選這個流程，按 Run workflow。
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+      - run: npm ci
+      - run: npx hardhat test
+      - name: 部署
+        env:
+          # 在 repo 的 Settings → Secrets and variables → Actions 設定
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.TESTNET_DEPLOYER_PRIVATE_KEY }}
+        run: npx hardhat run scripts/deploy.js --network kairos
