@@ -1,0 +1,33 @@
+{
+  "organizer": { "name": "[劇團名稱]", "contactEmail": "[聯絡 Email]" },
+  "production": {
+    "title": "雨季之前",
+    "companyName": "[劇團名稱]",
+    "genre": "戲劇",
+    "content": {
+      "intro": "[由劇團提供的節目介紹：故事大綱、創作緣起與主題。]",
+      "directorNote": "[導演寫給觀眾的文字。]",
+      "duration": "[約 100 分鐘，無中場休息]",
+      "credits": [
+        { "role": "導演", "names": "[姓名]" },
+        { "role": "編劇", "names": "[姓名]" },
+        { "role": "演員", "names": "[姓名]、[姓名]、[姓名]" },
+        { "role": "舞台設計", "names": "[姓名]" },
+        { "role": "燈光設計", "names": "[姓名]" },
+        { "role": "製作人", "names": "[姓名]" }
+      ]
+    }
+  },
+  "designs": [
+    { "key": "regular", "label": "一般場", "coverColor": "#23305C" },
+    { "key": "premiere", "label": "首演場", "coverColor": "#8A3B22" },
+    { "key": "finale", "label": "壓軸場", "coverColor": "#5B2C45" }
+  ],
+  "defaultDesign": "regular",
+  "shows": [
+    { "startsAt": "2026-11-20T19:30:00+08:00", "venue": "[演出場館]", "design": "premiere", "maxClaims": 300 },
+    { "startsAt": "2026-11-21T14:30:00+08:00", "venue": "[演出場館]", "maxClaims": 300 },
+    { "startsAt": "2026-11-21T19:30:00+08:00", "venue": "[演出場館]", "maxClaims": 300 },
+    { "startsAt": "2026-11-22T14:30:00+08:00", "venue": "[演出場館]", "design": "finale", "maxClaims": 300 }
+  ]
+}

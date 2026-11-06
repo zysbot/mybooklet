@@ -1,0 +1,23 @@
+name: 定時上鏈掃描
+
+# 每 5 分鐘呼叫網站一次，處理到期的重試與卡住的紀錄。
+# 需在 repo 的 Actions secrets 設定 SITE_URL 與 CRON_SECRET；未設定時自動略過。
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 呼叫 /api/cron/mint
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "尚未設定 SITE_URL 或 CRON_SECRET，略過"
+            exit 0
+          fi
+          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/cron/mint"

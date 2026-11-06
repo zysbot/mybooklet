@@ -11,6 +11,34 @@
 | `contracts/` | 智能合約（Solidity + Hardhat）與測試 |
 | `web/` | 收藏冊網站、主辦方後台、後端 API、背景上鏈程序（Next.js） |
 
+**第一次設定請看 [docs/setup.md](docs/setup.md)。**
+
+## 網站
+
+```bash
+cd web
+npm install
+npm test        # 領取與上鏈程序的測試（內建 PostgreSQL，不需另外安裝）
+npm run build
+```
+
+| 路徑 | 用途 |
+| --- | --- |
+| `/c/<領取碼>` | QR code 指向的領取頁 |
+| `/me` | 我的收藏冊 |
+| `/booklet/<領取紀錄>` | 節目單內頁與收藏憑證 |
+| `/api/claim` | 領取：只寫資料庫、立即回應，回應後在背景通知與上鏈 |
+| `/api/cron/mint` | 定時掃描：重試與對帳（GitHub Actions 每 5 分鐘呼叫） |
+| `/api/metadata/<場次>`、`/api/cover/<場次>` | token 的 metadata 與卡面圖 |
+
+| 指令 | 用途 |
+| --- | --- |
+| `npm run keys:generate` | 產生觀眾錢包主助記詞與營運錢包 |
+| `npm run db:migrate` | 建立或更新資料庫結構 |
+| `npm run create-show -- shows/xxx.json` | 上架節目、寫入合約、產生 QR code |
+
+上鏈流程：領取時只寫資料庫（狀態 pending）→ 背景程序批次鑄造（submitted → minted）→ 失敗依次數延後重試，超過上限標為 failed。代管錢包地址由延伸公鑰推導，伺服器不持有觀眾錢包私鑰。
+
 ## 合約
 
 ```bash
