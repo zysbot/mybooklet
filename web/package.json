@@ -11,7 +11,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "keys:generate": "tsx scripts/generate-keys.ts",
     "postinstall": "node scripts/copy-pdf-worker.mjs",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "vercel-build": "tsx scripts/migrate.ts && next build"
   },
   "license": "ISC",
   "dependencies": {
