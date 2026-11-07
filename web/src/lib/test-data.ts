@@ -2,7 +2,7 @@ import type { Db } from "./db";
 import { findOrCreateUser } from "./users";
 import { claimShow, ClaimError } from "./claim";
 import { setFavorite } from "./favorites";
-import { TEST_CATALOG, testClaimWindow, testShowTimes } from "./test-catalog";
+import { TEST_CATALOG, TEST_COVER_PREFIX, testClaimWindow, testCoverUrl, testShowTimes } from "./test-catalog";
 import { newClaimCode, parseNames } from "./productions";
 
 /** 測試觀眾的識別：Google 帳號 ID 以這個開頭（不是真的 Google 帳號，無法登入） */
@@ -196,16 +196,17 @@ export async function clearTestViewers(db: Db): Promise<number> {
 
 export interface CatalogSyncReport {
   productions: number;
+  coversSet: number;
   showsAdded: number;
   showsMoved: number;
 }
 
 /**
- * 把資料庫裡已上架的測試節目更新成測試目錄現在的樣子：藝術節、導演、編劇，以及場次
+ * 把資料庫裡已上架的測試節目更新成測試目錄現在的樣子：藝術節、導演、編劇、示範卡面圖，以及場次
  * （週末四場或單一場次）。新增的場次要再按「把場次寫入合約」。可以重複執行。
  */
 export async function syncTestCatalog(db: Db, siteUrl: string, now: Date = new Date()): Promise<CatalogSyncReport> {
-  const report: CatalogSyncReport = { productions: 0, showsAdded: 0, showsMoved: 0 };
+  const report: CatalogSyncReport = { productions: 0, coversSet: 0, showsAdded: 0, showsMoved: 0 };
   for (const t of TEST_CATALOG) {
     const p = await db.query<{ id: string }>(`SELECT min(id) AS id FROM productions WHERE title = $1`, [t.title]);
     const pid = p.rows[0]?.id;
@@ -217,6 +218,14 @@ export async function syncTestCatalog(db: Db, siteUrl: string, now: Date = new D
       parseNames(t.directors ?? ""),
       parseNames(t.playwrights ?? ""),
     ]);
+    // 示範卡面圖：只填沒有圖的卡面（或換掉舊的示範圖），營運方或劇團自己上傳的圖不動
+    const covers = await db.query(
+      `UPDATE designs SET cover_image_url = $2
+        WHERE production_id = $1 AND (cover_image_url IS NULL OR (cover_image_url LIKE $3 AND cover_image_url <> $2))
+        RETURNING id`,
+      [pid, testCoverUrl(t), `${TEST_COVER_PREFIX}%`]
+    );
+    report.coversSet += covers.rows.length;
 
     const wanted = testShowTimes(t).map((x) => new Date(x));
     const existing = await db.query<{ id: string; starts_at: Date; venue: string; venue_id: string | null }>(

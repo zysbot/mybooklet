@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { Db } from "@/lib/db";
 import { createProduction, configureShowsOnChain, ProductionError, type ProductionInput } from "@/lib/productions";
 import { seedTestViewers, clearTestViewers, syncTestCatalog, TEST_VIEWER_COUNT } from "@/lib/test-data";
-import { TEST_CATALOG, testClaimWindow, testShowTimes } from "@/lib/test-catalog";
+import { TEST_CATALOG, testClaimWindow, testCoverUrl, testShowTimes } from "@/lib/test-catalog";
+import { existsSync } from "node:fs";
 import { getKindred, setClaimHidden } from "@/lib/social";
 import { setFavorite, FavoriteError } from "@/lib/favorites";
 import { parseNames } from "@/lib/productions";
@@ -255,7 +256,7 @@ describe("測試節目的場次", () => {
     expect(TEST_CATALOG.filter((t) => t.festival)).toHaveLength(5);
   });
 
-  it("舊的單場測試節目可以更新成週末四場，並補上藝術節與創作者", async () => {
+  it("舊的單場測試節目可以更新成週末四場，並補上藝術節、創作者與示範卡面圖", async () => {
     const db = await createTestDb();
     const t = TEST_CATALOG.find((x) => x.title === "鹽的聲音")!;
     const old = await createProduction(
@@ -268,15 +269,24 @@ describe("測試節目的場次", () => {
       SITE
     );
     const r = await syncTestCatalog(db, SITE, NOW);
-    expect(r).toEqual({ productions: 1, showsAdded: 3, showsMoved: 1 });
+    expect(r).toEqual({ productions: 1, coversSet: 1, showsAdded: 3, showsMoved: 1 });
     const shows = await db.query<{ id: string; starts_at: Date }>(`SELECT id, starts_at FROM shows WHERE production_id = $1 ORDER BY starts_at`, [old.productionId]);
     expect(shows.rows.map((s) => new Date(s.starts_at).toISOString())).toEqual(testShowTimes(t).map((x) => new Date(x).toISOString()));
     // 原本 9/13（週日）晚上那一場，移到同一天的下午場
     expect(String(shows.rows[3].id)).toBe(old.shows[0].showId);
     const p = await db.query<{ directors: string[] }>(`SELECT directors FROM productions WHERE id = $1`, [old.productionId]);
     expect(p.rows[0].directors).toEqual(["陳映竹"]);
+    const d = await db.query<{ cover_image_url: string | null }>(`SELECT cover_image_url FROM designs WHERE production_id = $1`, [old.productionId]);
+    expect(d.rows[0].cover_image_url).toBe("/test-covers/02.svg");
     // 再執行一次不會重複
-    expect(await syncTestCatalog(db, SITE, NOW)).toEqual({ productions: 1, showsAdded: 0, showsMoved: 0 });
+    expect(await syncTestCatalog(db, SITE, NOW)).toEqual({ productions: 1, coversSet: 0, showsAdded: 0, showsMoved: 0 });
+    // 營運方或劇團自己上傳的圖不會被換掉
+    await db.query(`UPDATE designs SET cover_image_url = 'https://blob.example/covers/x.webp' WHERE production_id = $1`, [old.productionId]);
+    expect((await syncTestCatalog(db, SITE, NOW)).coversSet).toBe(0);
+  });
+
+  it("每檔測試節目都有對應的示範卡面圖檔", () => {
+    for (const t of TEST_CATALOG) expect(existsSync(`public${testCoverUrl(t)}`), t.title).toBe(true);
   });
 
   it("姓名用頓號、逗號分開", () => {

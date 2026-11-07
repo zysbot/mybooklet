@@ -49,6 +49,12 @@ export const TEST_CATALOG: TestProduction[] = [
     intro: "四十位團員，唱遍島嶼的山、海與城市。" },
 ];
 
+/** 測試節目的示範卡面圖（由 scripts/gen-test-covers.mjs 畫好，放在 public/test-covers/） */
+export const TEST_COVER_PREFIX = "/test-covers/";
+export function testCoverUrl(t: Pick<TestProduction, "file">): string {
+  return `${TEST_COVER_PREFIX}${t.file.slice(0, 2)}.svg`;
+}
+
 /** 測試場次的領取時間：涵蓋演出時間，也涵蓋「現在起 30 天」，讓過去的場次也能測試領取 */
 export function testClaimWindow(startsAt: string, now: Date = new Date()): { opensAt: string; closesAt: string } {
   const start = new Date(startsAt).getTime();

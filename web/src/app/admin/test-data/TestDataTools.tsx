@@ -119,7 +119,7 @@ export function TestDataTools({
     const r = await res.json().catch(() => ({}));
     setSeedMsg(
       res.ok
-        ? `已更新 ${r.productions} 檔測試節目：新增 ${r.showsAdded} 個場次、調整 ${r.showsMoved} 個場次時間。${r.showsAdded ? "請到下方按「把場次寫入合約」，再清除並重新建立測試觀眾，觀眾就會分散到各場次。" : ""}`
+        ? `已更新 ${r.productions} 檔測試節目：放上 ${r.coversSet} 張示範卡面圖、新增 ${r.showsAdded} 個場次、調整 ${r.showsMoved} 個場次時間。${r.showsAdded ? "請到下方按「把場次寫入合約」，再清除並重新建立測試觀眾，觀眾就會分散到各場次。" : ""}`
         : r.error ?? "失敗"
     );
     setSeedBusy(false);
