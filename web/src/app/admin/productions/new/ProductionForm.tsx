@@ -37,7 +37,10 @@ function weekendShows(friday: string): string[] {
 }
 let rowId = 1;
 
-export function ProductionForm({ workTitles }: { workTitles: string[] }) {
+/** 製作公司欄位：用頓號分開的多家 */
+const splitNames = (raw: string) => [...new Set(raw.split(/[、,，;；\n]+/).map((x) => x.trim()).filter(Boolean))];
+
+export function ProductionForm({ workTitles, organizers }: { workTitles: string[]; organizers: { companies: string[]; producers: string[] } }) {
   const [title, setTitle] = useState("");
   const [workTitle, setWorkTitle] = useState("");
   const [festival, setFestival] = useState("");
@@ -46,6 +49,7 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
   const [genre, setGenre] = useState("");
   const [company, setCompany] = useState("");
   const [producer, setProducer] = useState("");
+  const [issuer, setIssuer] = useState("");
   const [intro, setIntro] = useState("");
   const [designs, setDesigns] = useState<DesignRow[]>([{ key: "d0", label: "一般場", coverColor: COVER_COLORS[0] }]);
   const [defaultDesign, setDefaultDesign] = useState("d0");
@@ -55,6 +59,15 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
+
+  // 發放單位的選項：製作公司與這檔節目用到的場館（演出團隊是預設值）
+  const issuerOptions = [
+    ...splitNames(producer).filter((n) => n !== company.trim()).map((n) => ({ name: n, label: `製作公司：${n}` })),
+    ...[...new Set(shows.map((s) => s.venue).filter(Boolean))]
+      .filter((n) => n !== company.trim() && !splitNames(producer).includes(n))
+      .map((n) => ({ name: n, label: `場館：${n}` })),
+  ];
+  const issuerValue = issuerOptions.some((o) => o.name === issuer) ? issuer : "";
 
   const setShow = (id: number, patch: Partial<ShowRow>) => setShows((xs) => xs.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const setDesign = (key: string, patch: Partial<DesignRow>) => setDesigns((xs) => xs.map((d) => (d.key === key ? { ...d, ...patch } : d)));
@@ -66,12 +79,17 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
       setError("每一場都要填演出時間與場館");
       return;
     }
+    // 新的組織名稱要確認，避免打錯字多出一個組織（例如同一家公司的全名和簡稱）
+    const known = new Set([...organizers.companies, ...organizers.producers, ...VENUES.map((v) => v.name)]);
+    const fresh = [company.trim(), ...splitNames(producer)].filter((n) => n && !known.has(n));
+    if (fresh.length && !confirm(`以下是新的組織，送出後會建立：\n\n${fresh.join("\n")}\n\n如果其實是已經有的組織（只是寫法不同），請按「取消」，從欄位的選單挑選。`)) return;
     setBusy(true);
     const body = {
       title,
       genre,
       companyName: company,
       producerName: producer || undefined,
+      issuer: issuerValue || undefined,
       workTitle: workTitle || undefined,
       festival: festival || undefined,
       directors,
@@ -166,12 +184,20 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
             </select>
           </label>
           <label className="field">
-            <span>演出團隊（劇團名稱）</span>
-            <input value={company} onChange={(e) => setCompany(e.target.value)} maxLength={80} required />
+            <span>演出團隊（從選單挑；新的團隊才自己打）</span>
+            <input value={company} onChange={(e) => setCompany(e.target.value)} maxLength={80} required list="org-companies" autoComplete="off" />
+            <datalist id="org-companies">{organizers.companies.map((n) => <option key={n} value={n} />)}</datalist>
+            {company.trim() && !organizers.companies.includes(company.trim()) && (
+              <span className="small muted">{organizers.producers.includes(company.trim()) || VENUES.some((v) => v.name === company.trim()) ? "已有這個組織，會沿用同一個（工作人員、方案共用）" : "新的團隊，送出時會再確認"}</span>
+            )}
           </label>
           <label className="field">
-            <span>製作方（與演出團隊不同時才填）</span>
-            <input value={producer} onChange={(e) => setProducer(e.target.value)} maxLength={80} />
+            <span>製作公司（與演出團隊不同時才填；共同製作用頓號分開）</span>
+            <input value={producer} onChange={(e) => setProducer(e.target.value)} maxLength={330} list="org-producers" autoComplete="off" />
+            <datalist id="org-producers">{organizers.producers.map((n) => <option key={n} value={n} />)}</datalist>
+            {splitNames(producer).some((n) => !organizers.producers.includes(n) && !organizers.companies.includes(n)) && (
+              <span className="small muted">有新的製作公司，送出時會再確認</span>
+            )}
           </label>
           <label className="field">
             <span>作品名稱（重演時選首演的名稱；不是重演就留白）</span>
@@ -308,6 +334,21 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
             <br />
             <span className="small muted">取消勾選時，開放時間為開演前 90 分鐘到開演後 4 小時（正式上線用）</span>
           </span>
+        </label>
+      </section>
+
+      <section className="panel" aria-labelledby="issuer-title">
+        <h2 id="issuer-title">發放單位</h2>
+        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>
+          誰跟吾冊合作、發放這份節目單：用它的合作方案與免費額度，也由它的工作人員上傳卡面、管理附加文宣。
+          通常是演出團隊；製作公司統籌或場館自辦節目時，改選它們。其他參與的組織仍然看得到自己範圍內的統計。
+        </p>
+        <label className="field" style={{ maxWidth: 360 }}>
+          <span>發放單位</span>
+          <select value={issuerValue} onChange={(e) => setIssuer(e.target.value)}>
+            <option value="">演出團隊{company.trim() ? `（${company.trim()}）` : ""}</option>
+            {issuerOptions.map((o) => <option key={o.label} value={o.name}>{o.label}</option>)}
+          </select>
         </label>
       </section>
 

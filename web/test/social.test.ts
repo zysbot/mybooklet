@@ -101,6 +101,13 @@ describe("社交：頭像列與個人頁", () => {
     for (const k of ["serial", "claimed", "address", "token", "@"]) expect(json).not.toContain(k);
   });
 
+  it("個人頁：你也收藏了的節目單連到你自己那一份，沒收藏的不能點", async () => {
+    const p = (await getProfile(db, ctx.me.id, ctx.other.public_id, NOW))!;
+    expect(p.booklets[0]).toMatchObject({ title: "甲", myClaimId: ctx.mine.A1 }); // 不同晚也連到自己那一份
+    const fromOther = (await getProfile(db, ctx.other.id, ctx.twin.public_id, NOW))!;
+    expect(fromOther.booklets.map((b) => [b.title, b.myClaimId === null])).toEqual([["甲", false], ["乙", true], ["丙", true]]);
+  });
+
   it("不公開的人沒有個人頁；本人可以預覽自己的", async () => {
     expect(await getProfile(db, ctx.me.id, ctx.shy.public_id, NOW)).toBeNull();
     const self = (await getProfile(db, ctx.me.id, ctx.me.public_id, NOW))!;

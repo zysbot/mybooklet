@@ -114,6 +114,8 @@ export interface ProfileBooklet {
   alsoSeen: boolean;
   /** 你們看的是同一場（同一晚） */
   sameNight: boolean;
+  /** 你自己收藏的那一份（點進去打開）；你沒收藏這齣戲時為 null（節目單內頁只給領取者） */
+  myClaimId: string | null;
 }
 
 export interface Profile {
@@ -157,12 +159,13 @@ export async function getProfile(q: Queryable, viewerId: string, publicId: strin
       ORDER BY s.starts_at DESC`,
     [user.id, cutoff]
   );
-  const mine = await q.query<{ show_id: string; production_id: string }>(
-    `SELECT c.show_id, s.production_id FROM claims c JOIN shows s ON s.id = c.show_id WHERE c.user_id = $1`,
+  const mine = await q.query<{ id: string; show_id: string; production_id: string }>(
+    `SELECT c.id, c.show_id, s.production_id FROM claims c JOIN shows s ON s.id = c.show_id WHERE c.user_id = $1 ORDER BY c.id`,
     [viewerId]
   );
-  const myShows = new Set(mine.rows.map((r) => String(r.show_id)));
-  const myProductions = new Set(mine.rows.map((r) => String(r.production_id)));
+  const myShows = new Map(mine.rows.map((r) => [String(r.show_id), String(r.id)]));
+  const myProductions = new Map<string, string>();
+  for (const r of mine.rows) if (!myProductions.has(String(r.production_id))) myProductions.set(String(r.production_id), String(r.id));
 
   // 同一齣戲收藏了多場時合併成一列（同一晚優先）
   const byProduction = new Map<string, ProfileBooklet & { startsAt: number }>();
@@ -171,6 +174,8 @@ export async function getProfile(q: Queryable, viewerId: string, publicId: strin
     const sameNight = !isSelf && myShows.has(String(r.show_id));
     const prev = byProduction.get(pid);
     if (prev) {
+      // 同一晚的那一份優先打開
+      if (sameNight && !prev.sameNight) prev.myClaimId = myShows.get(String(r.show_id)) ?? prev.myClaimId;
       prev.sameNight ||= sameNight;
       continue;
     }
@@ -184,6 +189,7 @@ export async function getProfile(q: Queryable, viewerId: string, publicId: strin
       coverImage: r.cover_image_url,
       alsoSeen: !isSelf && myProductions.has(pid),
       sameNight,
+      myClaimId: (sameNight ? myShows.get(String(r.show_id)) : undefined) ?? myProductions.get(pid) ?? null,
       startsAt: new Date(r.starts_at).getTime(),
     });
   }

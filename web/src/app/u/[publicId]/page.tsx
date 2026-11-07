@@ -47,8 +47,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ public
         {p.booklets.length === 0 ? (
           <p className="empty">還沒有公開的節目單。</p>
         ) : (
-          p.booklets.map((b) => (
-            <div key={b.productionId} className="pbook">
+          p.booklets.map((b) => {
+            const inner = (
+              <>
               <span className="pbook-cover" style={cardBackground(b.coverColor, b.coverImage)} aria-hidden="true" />
               <div className="stack" style={{ gap: 2, minWidth: 0 }}>
                 <span className="pbook-title">
@@ -57,13 +58,23 @@ export default async function ProfilePage({ params }: { params: Promise<{ public
                 </span>
                 <span className="pbook-meta">{b.companyName}{b.genre ? `・${b.genre}` : ""}・{b.month}</span>
               </div>
-            </div>
-          ))
+              </>
+            );
+            // 你也收藏了的，點進去打開你自己那一份；沒收藏的不能點（節目單內頁只給領取者）
+            return b.myClaimId ? (
+              <Link key={b.productionId} href={`/booklet/${b.myClaimId}`} className="pbook pbook-link" aria-label={`打開你收藏的《${b.title}》`}>
+                {inner}
+                <span className="pbook-go" aria-hidden="true">›</span>
+              </Link>
+            ) : (
+              <div key={b.productionId} className="pbook">{inner}</div>
+            );
+          })
         )}
       </section>
 
       <p className="small muted center" style={{ margin: "8px 0 0", lineHeight: 1.7 }}>
-        化名與頭像由吾冊產生，不代表任何真實身分。只列出本人公開的節目單，日期只到年月。
+        化名與頭像由吾冊產生，不代表任何真實身分。只列出本人公開的節目單，日期只到年月。{p.isSelf ? "" : "你也收藏了的節目單，點一下就會打開你自己那一份。"}
       </p>
     </main>
   );

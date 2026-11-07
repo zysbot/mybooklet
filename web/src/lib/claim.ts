@@ -1,5 +1,6 @@
 import type { Db } from "./db";
 import { EFFECTIVE_PLAN_SQL, FREE_CLAIM_LIMIT } from "./plans";
+import { ISSUER_SQL } from "./roles";
 
 export type ClaimErrorCode = "CODE_NOT_FOUND" | "CODE_NOT_ACTIVE" | "SOLD_OUT" | "FREE_LIMIT";
 
@@ -69,10 +70,11 @@ export async function claimShow(db: Db, userId: string, code: string, now: Date 
       if (Number(count.rows[0].n) >= claimCode.max_claims) throw new ClaimError("SOLD_OUT");
     }
 
-    // 免費方案：演出團隊所有場次合計最多 FREE_CLAIM_LIMIT 份。鎖住組織這一列，跨場次同時領取也不會超發。
+    // 免費方案：發放單位（預設是演出團隊）所有節目、所有場次合計最多 FREE_CLAIM_LIMIT 份。
+    // 鎖住組織這一列，跨場次同時領取也不會超發。
     const org = await q.query<{ id: string; plan: string }>(
       `SELECT o.id, ${EFFECTIVE_PLAN_SQL} AS plan
-         FROM organizers o JOIN productions p ON p.organizer_id = o.id JOIN shows s ON s.production_id = p.id
+         FROM shows s JOIN productions p ON p.id = s.production_id JOIN organizers o ON o.id = ${ISSUER_SQL}
         WHERE s.id = $1
         FOR UPDATE OF o`,
       [claimCode.show_id]
@@ -80,7 +82,7 @@ export async function claimShow(db: Db, userId: string, code: string, now: Date 
     if (org.rows[0]?.plan === "free") {
       const used = await q.query<{ n: string }>(
         `SELECT count(*) AS n FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
-          WHERE p.organizer_id = $1`,
+          WHERE ${ISSUER_SQL} = $1`,
         [org.rows[0].id]
       );
       if (Number(used.rows[0].n) >= FREE_CLAIM_LIMIT) throw new ClaimError("FREE_LIMIT");

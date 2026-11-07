@@ -4,7 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { isAdmin } from "@/lib/admin";
 import { getDb } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
-import { getOrganizer, ORG_KIND_LABEL } from "@/lib/insights";
+import { getOrganizer } from "@/lib/insights";
+import { listOrgProductions } from "@/lib/roles";
 import { FREE_CLAIM_LIMIT, freeUsage, getPlan, logPlanChange, PLAN_LABEL, PLANS, PlanError, setPlan } from "@/lib/plans";
 import { addMember, listAccessLog, listMembers, OrgAccountError, removeMember } from "@/lib/org-accounts";
 import "../../admin.css";
@@ -40,11 +41,12 @@ export default async function ManageOrganizer({
   const db = getDb();
   const org = await getOrganizer(db, id);
   if (!org) notFound();
-  const [plan, members, log, used] = await Promise.all([
+  const [plan, members, log, used, involved] = await Promise.all([
     getPlan(db, id),
     listMembers(db, id),
     listAccessLog(db, id),
-    org.kind === "company" ? freeUsage(db, id) : Promise.resolve(null),
+    org.roles.issuer || org.kind === "company" ? freeUsage(db, id) : Promise.resolve(null),
+    listOrgProductions(db, id),
   ]);
   if (!plan) notFound();
 
@@ -89,7 +91,7 @@ export default async function ManageOrganizer({
     <main className="admin">
       <div className="admin-top">
         <div className="stack" style={{ gap: 4 }}>
-          <span className="small muted">{ORG_KIND_LABEL[org.kind]}</span>
+          <span className="small muted">{org.roleLabel}</span>
           <h1>{org.name}</h1>
         </div>
         <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
@@ -108,7 +110,7 @@ export default async function ManageOrganizer({
           {plan.plan !== plan.effective && `（設定為${PLAN_LABEL[plan.plan]}，已於 ${plan.until} 到期）`}
           {used !== null && plan.effective === "free" && `・免費額度已使用 ${used} / ${FREE_CLAIM_LIMIT} 份`}
           <br />
-          免費：只看每場份數，演出團隊所有場次合計最多 {FREE_CLAIM_LIMIT} 份。基本合作：看得到完整統計、不限份數；到期日當天仍有效，過了自動回到免費。
+          免費：只看每場份數，由它發放的所有節目、所有場次合計最多 {FREE_CLAIM_LIMIT} 份。基本合作：看得到完整統計、不限份數；到期日當天仍有效，過了自動回到免費。
         </p>
         <form action={savePlan} className="form-grid">
           <label className="field">
@@ -127,6 +129,36 @@ export default async function ManageOrganizer({
             <button type="submit" className="btn btn-primary">儲存方案</button>
           </div>
         </form>
+      </section>
+
+      <section className="panel" aria-labelledby="involved-title">
+        <h2 id="involved-title">參與的節目</h2>
+        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>
+          它的工作人員看得到這些節目在它範圍內的統計：演出團隊看全部場次、製作公司看自己製作的、場館只看在本館的場次。
+          標「發放」的節目用它的方案與免費額度，卡面與附加文宣也由它管理。發放單位在營運後台首頁各節目下方更改。
+        </p>
+        {involved.length === 0 ? (
+          <p className="small muted" style={{ margin: 0 }}>還沒有參與任何節目。</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>節目</th><th>演出團隊</th><th>身分</th><th>它範圍內的場次</th><th>已領取</th></tr>
+              </thead>
+              <tbody>
+                {involved.map((p) => (
+                  <tr key={p.productionId}>
+                    <td>《{p.title}》</td>
+                    <td>{p.companyName}</td>
+                    <td>{p.roleLabel}{p.isIssuer && <strong>・發放</strong>}</td>
+                    <td>{p.shows}</td>
+                    <td>{p.claims}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="panel" aria-labelledby="members-title">

@@ -49,7 +49,7 @@ function Item({ a, organizerId, expired }: { a: Attachment; organizerId: string;
 
 /**
  * 主辦方後台「附加文宣」：放在自己節目單下方給觀眾的資料。
- * 只有演出團隊（節目的 organizer）能管理；製作方與場館看不到這一區。
+ * 只有發放單位（預設是演出團隊）能管理；只參與、不發放的組織看不到這一區。
  */
 export async function AttachmentsPanel({ organizerId, plan, error }: { organizerId: string; plan: Plan; error?: string }) {
   const list = await listOrgAttachments(getDb(), organizerId);

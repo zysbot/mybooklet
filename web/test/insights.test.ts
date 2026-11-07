@@ -28,6 +28,7 @@ async function build(db: Db) {
     )).rows[0].id;
     const d = (await db.query<{ id: string }>(`INSERT INTO designs (production_id, label) VALUES ($1, '一般場') RETURNING id`, [p])).rows[0].id;
     await db.query(`UPDATE productions SET default_design_id = $2 WHERE id = $1`, [p, d]);
+    if (producerId) await db.query(`INSERT INTO production_producers (production_id, organizer_id) VALUES ($1, $2)`, [p, producerId]);
     return p;
   };
   const show = async (production: string, venueId: string, venueName: string, at: string) =>

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Queryable } from "./db";
 import type { FileStore } from "./storage";
+import { ISSUER_SQL } from "./roles";
 
 /**
  * 卡面圖片：主辦方上傳的主視覺或劇照，當卡面的底圖（劇名、類型、日期疊在上面）。
@@ -13,11 +14,11 @@ const TYPES: Record<string, string> = { "image/webp": "webp", "image/jpeg": "jpg
 
 export class CoverError extends Error {}
 
-/** 這個卡面版本屬於哪個組織（節目的演出團隊）；找不到回傳 null */
+/** 這個卡面版本由哪個組織管理（節目的發放單位，預設是演出團隊）；找不到回傳 null */
 export async function designOrganizer(q: Queryable, designId: string): Promise<string | null> {
   if (!/^\d+$/.test(designId)) return null;
   const r = await q.query<{ organizer_id: string }>(
-    `SELECT p.organizer_id FROM designs d JOIN productions p ON p.id = d.production_id WHERE d.id = $1`,
+    `SELECT ${ISSUER_SQL} AS organizer_id FROM designs d JOIN productions p ON p.id = d.production_id WHERE d.id = $1`,
     [designId]
   );
   return r.rows[0] ? String(r.rows[0].organizer_id) : null;
@@ -48,13 +49,13 @@ export interface OrgDesign {
   firstShow: Date | null;
 }
 
-/** 主辦方後台：自己（演出團隊）每檔節目的卡面版本 */
+/** 主辦方後台：自己發放的每檔節目的卡面版本 */
 export async function listOrgDesigns(q: Queryable, organizerId: string): Promise<OrgDesign[]> {
   const r = await q.query<{ id: string; title: string; label: string; cover_color: string; cover_image_url: string | null; genre: string | null; company_name: string; first_show: Date | null }>(
     `SELECT d.id, p.title, d.label, d.cover_color, d.cover_image_url, p.genre, p.company_name,
             (SELECT min(s.starts_at) FROM shows s WHERE s.production_id = p.id) AS first_show
        FROM designs d JOIN productions p ON p.id = d.production_id
-      WHERE p.organizer_id = $1
+      WHERE ${ISSUER_SQL} = $1
       ORDER BY first_show DESC NULLS LAST, p.id DESC, d.id`,
     [organizerId]
   );

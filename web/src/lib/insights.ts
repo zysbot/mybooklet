@@ -1,4 +1,5 @@
 import type { Queryable } from "./db";
+import { getOrgRoles, rolesLabel, scopeSql, type OrgRoles } from "./roles";
 
 /**
  * 主辦方後台的統計與觀眾足跡。
@@ -16,7 +17,7 @@ export type OrgKind = "company" | "producer" | "venue";
 
 export const ORG_KIND_LABEL: Record<OrgKind, string> = {
   company: "劇團／演出團隊",
-  producer: "製作方",
+  producer: "製作公司",
   venue: "場館",
 };
 
@@ -38,6 +39,10 @@ export interface Organizer {
   id: string;
   name: string;
   kind: OrgKind;
+  /** 實際身分（一個組織可以同時是演出團隊、製作公司、場館） */
+  roles: OrgRoles;
+  /** 例如「演出團隊・場館」 */
+  roleLabel: string;
 }
 
 export interface ShowStat {
@@ -67,24 +72,19 @@ export interface Insights {
   favorites: Masked;
 }
 
-/** 依組織類型決定「屬於你的場次」：劇團看演出團隊、製作方看製作、場館看在館內的場次 */
-function scopeCondition(kind: OrgKind): string {
-  if (kind === "company") return "p.organizer_id = $1";
-  if (kind === "producer") return "p.producer_id = $1";
-  return "s.venue_id = $1";
-}
-
 export async function getOrganizer(q: Queryable, id: string): Promise<Organizer | null> {
   if (!/^\d+$/.test(id)) return null;
   const r = await q.query<{ id: string; name: string; kind: OrgKind }>(`SELECT id, name, kind FROM organizers WHERE id = $1`, [id]);
   const o = r.rows[0];
-  return o ? { id: String(o.id), name: o.name, kind: o.kind } : null;
+  if (!o) return null;
+  const roles = await getOrgRoles(q, String(o.id));
+  return { id: String(o.id), name: o.name, kind: o.kind, roles, roleLabel: rolesLabel(roles, o.kind) };
 }
 
 export async function getInsights(q: Queryable, organizerId: string): Promise<Insights | null> {
   const organizer = await getOrganizer(q, organizerId);
   if (!organizer) return null;
-  const cond = scopeCondition(organizer.kind);
+  const cond = scopeSql();
   const scopedShows = `SELECT s.id FROM shows s JOIN productions p ON p.id = s.production_id WHERE ${cond}`;
   const scoped = `SELECT c.user_id, c.show_id, c.claimed_at FROM claims c WHERE c.show_id IN (${scopedShows})`;
   const audience = `SELECT DISTINCT user_id FROM (${scoped}) sc`;
@@ -135,7 +135,6 @@ export async function getInsights(q: Queryable, organizerId: string): Promise<In
       `SELECT s.venue, count(DISTINCT c.user_id) AS n
          FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
         WHERE c.user_id IN (${audience}) AND NOT COALESCE(${cond}, FALSE)
-          ${organizer.kind === "venue" ? "AND (s.venue_id IS NULL OR s.venue_id <> $1)" : ""}
         GROUP BY s.venue ORDER BY n DESC LIMIT 8`,
       [id]
     ),
@@ -223,7 +222,7 @@ export async function getFreeStats(q: Queryable, organizerId: string): Promise<F
             (SELECT count(*) FROM claims c WHERE c.show_id = s.id) AS claims,
             (SELECT count(*) FROM claims c WHERE c.show_id = s.id AND c.chain_status = 'minted') AS minted
        FROM shows s JOIN productions p ON p.id = s.production_id
-      WHERE ${scopeCondition(organizer.kind)}
+      WHERE ${scopeSql()}
       ORDER BY s.starts_at DESC`,
     [organizer.id]
   );

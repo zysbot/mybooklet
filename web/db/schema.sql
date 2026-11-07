@@ -332,3 +332,25 @@ ALTER TABLE productions ADD COLUMN IF NOT EXISTS playwrights TEXT[] NOT NULL DEF
 -- 前三喜歡改為前五喜歡
 ALTER TABLE favorites DROP CONSTRAINT IF EXISTS favorites_rank_check;
 ALTER TABLE favorites ADD CONSTRAINT favorites_rank_check CHECK (rank BETWEEN 1 AND 5);
+
+-- ---------------------------------------------------------------
+-- 2026-11-07 夜：發放單位、共同製作、一個組織多種身分
+-- ---------------------------------------------------------------
+
+-- 發放單位：這檔節目由誰發放節目單（付費方案、免費 50 份額度、卡面與附加文宣都歸它）。
+-- NULL 表示演出團隊本身（organizer_id）。
+ALTER TABLE productions ADD COLUMN IF NOT EXISTS issuer_id BIGINT REFERENCES organizers(id);
+
+-- 製作公司：一檔節目可以有多家（共同製作）。productions.producer_id 保留為第一家，舊資料自動搬進來。
+CREATE TABLE IF NOT EXISTS production_producers (
+  production_id  BIGINT NOT NULL REFERENCES productions(id),
+  organizer_id   BIGINT NOT NULL REFERENCES organizers(id),
+  PRIMARY KEY (production_id, organizer_id)
+);
+CREATE INDEX IF NOT EXISTS production_producers_org ON production_producers (organizer_id);
+INSERT INTO production_producers (production_id, organizer_id)
+  SELECT id, producer_id FROM productions WHERE producer_id IS NOT NULL
+  ON CONFLICT DO NOTHING;
+
+-- 一個組織可以同時是演出團隊、製作公司、場館（例如場館自製節目）。
+-- organizers.kind 改作「主要身分」（後台分類用）；實際身分看它在哪些節目裡出現。

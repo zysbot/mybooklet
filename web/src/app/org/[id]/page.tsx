@@ -6,7 +6,7 @@ import { isAdmin } from "@/lib/admin";
 import { currentOrgAccount } from "@/lib/org-session";
 import { isOrgMember, logAccess } from "@/lib/org-accounts";
 import { getPlan, PLAN_LABEL } from "@/lib/plans";
-import { getInsights, ORG_KIND_LABEL, MIN_GROUP, type Masked } from "@/lib/insights";
+import { getInsights, MIN_GROUP, type Masked } from "@/lib/insights";
 import { FreeView } from "./FreeView";
 import { formatShowTime } from "@/lib/format";
 import "../../admin/admin.css";
@@ -67,7 +67,7 @@ export default async function OrgDashboard({ params, searchParams }: { params: P
       <OrgBrand />
       <div className="admin-top">
         <div className="stack" style={{ gap: 4 }}>
-          <span className="small muted">{ORG_KIND_LABEL[organizer.kind]}</span>
+          <span className="small muted">{organizer.roleLabel}</span>
           <h1>{organizer.name}</h1>
         </div>
         <Link href="/org" className="link-btn">我的後台</Link>
@@ -142,7 +142,7 @@ export default async function OrgDashboard({ params, searchParams }: { params: P
 
           <section className="panel" aria-labelledby="foot-title">
             <h2 id="foot-title">觀眾足跡</h2>
-            <p className="small muted" style={{ margin: 0 }}>你的觀眾在其他演出領過的節目單。不列出其他劇團或製作方；不到 {MIN_GROUP} 人的類型與場館不列出。</p>
+            <p className="small muted" style={{ margin: 0 }}>你的觀眾在其他演出領過的節目單。不列出其他劇團或製作公司；不到 {MIN_GROUP} 人的類型與場館不列出。</p>
             <h3 className="sub">看其他演出時，也看過的類型</h3>
             <div className="bars">
               {r.genres.length === 0 ? <p className="muted small" style={{ margin: 0 }}>尚無達到 {MIN_GROUP} 人的類型</p> : r.genres.map((g) => <Bar key={g.genre} label={g.genre} m={g.count} />)}

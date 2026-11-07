@@ -2,7 +2,7 @@ import { getDb } from "@/lib/db";
 import { listOrgDesigns } from "@/lib/covers";
 import { CoverUploader } from "@/components/CoverUploader";
 
-/** 主辦方後台「節目卡面」：上傳主視覺當卡面底圖。只有演出團隊看得到這一區。 */
+/** 主辦方後台「節目卡面」：上傳主視覺當卡面底圖。只有發放單位看得到這一區。 */
 export async function CoversPanel({ organizerId }: { organizerId: string }) {
   const designs = await listOrgDesigns(getDb(), organizerId);
   if (!designs.length) return null;

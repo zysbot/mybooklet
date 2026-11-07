@@ -1,4 +1,5 @@
 import type { Queryable } from "./db";
+import { ISSUER_SQL } from "./roles";
 
 /**
  * 主辦方的合作方案。
@@ -71,11 +72,11 @@ export async function setPlan(q: Queryable, organizerId: string, plan: string, u
   if (r.rows.length === 0) throw new PlanError("找不到這個組織");
 }
 
-/** 免費組織已發出的份數（以演出團隊計，所有節目、所有場次合計） */
+/** 免費組織已發出的份數（以發放單位計，所有節目、所有場次合計） */
 export async function freeUsage(q: Queryable, organizerId: string): Promise<number> {
   const r = await q.query<{ n: string }>(
     `SELECT count(*) AS n FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
-      WHERE p.organizer_id = $1`,
+      WHERE ${ISSUER_SQL} = $1`,
     [organizerId]
   );
   return Number(r.rows[0].n);

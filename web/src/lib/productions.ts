@@ -27,7 +27,10 @@ export interface ProductionInput {
   title: string;
   companyName: string;
   genre: string;
+  /** 製作公司（與演出團隊不同時才填）；共同製作用頓號分開 */
   producerName?: string;
+  /** 發放單位的名稱：演出團隊、其中一家製作公司或其中一個場館；不填就是演出團隊 */
+  issuer?: string;
   /** 作品名稱：重演時填首演的名稱；不填就是節目名稱 */
   workTitle?: string;
   /** 藝術節或系列；不屬於藝術節就不填 */
@@ -79,7 +82,11 @@ export function validateProduction(input: ProductionInput): void {
   if (!title || title.length > 80) throw new ProductionError("請填寫節目名稱（80 字以內）");
   if (!company || company.length > 80) throw new ProductionError("請填寫演出團隊（80 字以內）");
   if (!isGenre(input.genre)) throw new ProductionError("請從選單選擇類型");
-  if ((input.producerName ?? "").length > 80) throw new ProductionError("製作方名稱過長");
+  const producers = parseOrgNames(input.producerName ?? "");
+  const issuer = input.issuer?.trim();
+  if (issuer && issuer !== company && !producers.includes(issuer) && !(input.shows ?? []).some((s) => s.venue === issuer)) {
+    throw new ProductionError("發放單位必須是演出團隊、製作公司或其中一個場館");
+  }
   if ((input.workTitle ?? "").length > 80) throw new ProductionError("作品名稱請在 80 字以內");
   if (input.festival && !isFestival(input.festival)) throw new ProductionError("藝術節請從選單選擇");
   parseNames(input.directors ?? "");
@@ -115,8 +122,13 @@ export function validateProduction(input: ProductionInput): void {
   });
 }
 
+/**
+ * 依名稱找組織，找不到才新增。同一個名稱只對應一個組織，不分身分：
+ * 場館自製節目時，「場館」和「演出團隊」是同一個組織，工作人員與方案只要設定一次。
+ * 同名的多個舊組織（11/07 以前依身分分開建立）優先沿用身分相同的那一個。
+ */
 async function orgId(q: Queryable, name: string, kind: "company" | "producer" | "venue"): Promise<string> {
-  const found = await q.query<{ id: string }>(`SELECT id FROM organizers WHERE name = $1 AND kind = $2 ORDER BY id LIMIT 1`, [name, kind]);
+  const found = await q.query<{ id: string }>(`SELECT id FROM organizers WHERE name = $1 ORDER BY (kind = $2) DESC, id LIMIT 1`, [name, kind]);
   if (found.rows[0]) return String(found.rows[0].id);
   const r = await q.query<{ id: string }>(`INSERT INTO organizers (name, kind) VALUES ($1, $2) RETURNING id`, [name, kind]);
   return String(r.rows[0].id);
@@ -147,7 +159,7 @@ async function describe(q: Queryable, productionId: string, existing: boolean): 
 }
 
 /**
- * 上架一檔節目：建立（或沿用）劇團、製作方、場館，以及節目、卡面版本、場次與領取碼。
+ * 上架一檔節目：建立（或沿用）劇團、製作公司、場館，以及節目、卡面版本、場次與領取碼。
  * dedupe：同一演出團隊已有同名節目時，直接回傳既有的（測試資料重複匯入用）。
  */
 export async function createProduction(
@@ -170,14 +182,21 @@ export async function createProduction(
 
   const productionId = await db.tx(async (q) => {
     const companyId = await orgId(q, company, "company");
-    const producerId = input.producerName?.trim() ? await orgId(q, input.producerName.trim(), "producer") : null;
+    const producerIds: string[] = [];
+    for (const name of parseOrgNames(input.producerName ?? "")) {
+      const oid = await orgId(q, name, "producer");
+      if (oid !== companyId && !producerIds.includes(oid)) producerIds.push(oid);
+    }
     const prod = await q.query<{ id: string }>(
       `INSERT INTO productions (organizer_id, title, company_name, genre, producer_id, work_title, festival, directors, playwrights)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [companyId, title, company, input.genre, producerId, normalizeWork(input.workTitle, title), input.festival || null,
+      [companyId, title, company, input.genre, producerIds[0] ?? null, normalizeWork(input.workTitle, title), input.festival || null,
        parseNames(input.directors ?? ""), parseNames(input.playwrights ?? "")]
     );
     const pid = String(prod.rows[0].id);
+    for (const oid of producerIds) {
+      await q.query(`INSERT INTO production_producers (production_id, organizer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [pid, oid]);
+    }
 
     const designIds: Record<string, string> = {};
     for (const d of input.designs) {
@@ -206,6 +225,12 @@ export async function createProduction(
         [showId, newClaimCode(), opens, closes, s.maxClaims ?? null]
       );
     }
+    // 發放單位：不是演出團隊本身時才存（場館這時已經建立好了）
+    const issuer = input.issuer?.trim();
+    if (issuer && issuer !== company) {
+      const issuerId = await orgId(q, issuer, parseOrgNames(input.producerName ?? "").includes(issuer) ? "producer" : "venue");
+      if (issuerId !== companyId) await q.query(`UPDATE productions SET issuer_id = $2 WHERE id = $1`, [pid, issuerId]);
+    }
     return pid;
   });
 
@@ -216,6 +241,14 @@ export async function createProduction(
 function normalizeWork(work: string | undefined, title: string): string | null {
   const w = (work ?? "").trim();
   return w && w !== title ? w : null;
+}
+
+/** 製作公司名稱：用頓號或逗號分開（共同製作），最多 4 家、每家 80 字以內 */
+export function parseOrgNames(raw: string): string[] {
+  const names = [...new Set(raw.split(/[、,，;；\n]+/).map((x) => x.trim()).filter(Boolean))];
+  if (names.length > 4) throw new ProductionError("製作公司最多填 4 家");
+  if (names.some((n) => n.length > 80)) throw new ProductionError("製作公司名稱請在 80 字以內");
+  return names;
 }
 
 /** 「甲、乙, 丙」→ ["甲", "乙", "丙"]；最多 8 人，每人 40 字以內 */
@@ -248,6 +281,21 @@ export async function setProductionCategories(q: Queryable, productionId: string
 export async function listWorkTitles(q: Queryable): Promise<string[]> {
   const r = await q.query<{ w: string }>(`SELECT DISTINCT COALESCE(NULLIF(work_title, ''), title) AS w FROM productions ORDER BY w`);
   return r.rows.map((x) => x.w);
+}
+
+/** 上架表單的選單：已經有的組織名稱（劇團、製作公司分開列；同一個組織可能兩邊都有） */
+export async function listOrganizerNames(q: Queryable): Promise<{ companies: string[]; producers: string[] }> {
+  const r = await q.query<{ name: string; company: boolean; producer: boolean }>(
+    `SELECT o.name,
+            o.kind = 'company' OR EXISTS (SELECT 1 FROM productions p WHERE p.organizer_id = o.id) AS company,
+            o.kind = 'producer' OR EXISTS (SELECT 1 FROM production_producers pp WHERE pp.organizer_id = o.id) AS producer
+       FROM organizers o ORDER BY o.name`
+  );
+  const uniq = (xs: string[]) => [...new Set(xs)];
+  return {
+    companies: uniq(r.rows.filter((x) => x.company).map((x) => x.name)),
+    producers: uniq(r.rows.filter((x) => x.producer).map((x) => x.name)),
+  };
 }
 
 /** 把場次的內容網址寫進合約；已寫過的略過。回傳每個場次的結果。 */

@@ -103,7 +103,7 @@ export async function seedTestViewers(db: Db, opts: { includeUserId?: string; no
     `UPDATE organizers SET plan = 'basic', plan_until = NULL
       WHERE plan = 'free' AND id IN (
         SELECT organizer_id FROM productions WHERE title = ANY($1::text[])
-        UNION SELECT producer_id FROM productions WHERE title = ANY($1::text[]) AND producer_id IS NOT NULL
+        UNION SELECT pp.organizer_id FROM production_producers pp JOIN productions p ON p.id = pp.production_id WHERE p.title = ANY($1::text[])
         UNION SELECT s.venue_id FROM shows s JOIN productions p ON p.id = s.production_id WHERE p.title = ANY($1::text[]) AND s.venue_id IS NOT NULL)`,
     [TEST_CATALOG.map((t) => t.title)]
   );

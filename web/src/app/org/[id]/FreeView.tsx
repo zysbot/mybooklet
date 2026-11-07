@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
-import { getFreeStats, ORG_KIND_LABEL } from "@/lib/insights";
+import { getFreeStats } from "@/lib/insights";
 import { FREE_CLAIM_LIMIT, freeUsage } from "@/lib/plans";
 import { formatShowTime } from "@/lib/format";
 import { OrgBrand } from "../OrgBrand";
@@ -14,15 +14,15 @@ export async function FreeView({ organizerId, adminNote, attError }: { organizer
   const r = await getFreeStats(db, organizerId);
   if (!r) notFound();
   const { organizer, totals } = r;
-  // 份數上限以演出團隊計；製作方、場館沒有上限
-  const used = organizer.kind === "company" ? await freeUsage(db, organizerId) : null;
+  // 份數上限以發放單位計；只參與、不發放的組織沒有上限
+  const used = organizer.roles.issuer ? await freeUsage(db, organizerId) : null;
 
   return (
     <main className="admin">
       <OrgBrand />
       <div className="admin-top">
         <div className="stack" style={{ gap: 4 }}>
-          <span className="small muted">{ORG_KIND_LABEL[organizer.kind]}・免費方案</span>
+          <span className="small muted">{organizer.roleLabel}・免費方案</span>
           <h1>{organizer.name}</h1>
         </div>
         <Link href="/org" className="link-btn">我的後台</Link>

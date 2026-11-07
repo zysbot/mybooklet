@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/admin";
 import { ProductionForm } from "./ProductionForm";
 import { getDb } from "@/lib/db";
-import { listWorkTitles } from "@/lib/productions";
+import { listOrganizerNames, listWorkTitles } from "@/lib/productions";
 import "../../admin.css";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function NewProductionPage() {
     <main className="admin">
       <Link href="/admin" className="back">← 回到後台</Link>
       <h1>上架節目</h1>
-      <ProductionForm workTitles={await listWorkTitles(getDb())} />
+      <ProductionForm workTitles={await listWorkTitles(getDb())} organizers={await listOrganizerNames(getDb())} />
     </main>
   );
 }

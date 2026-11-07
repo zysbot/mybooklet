@@ -1,6 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import type { Queryable } from "./db";
 import type { Organizer, OrgKind } from "./insights";
+import { getOrgRoles, rolesLabel } from "./roles";
 import { EFFECTIVE_PLAN_SQL, type Plan } from "./plans";
 
 /**
@@ -134,7 +135,12 @@ export async function listAccountOrgs(q: Queryable, accountId: string): Promise<
       WHERE m.account_id = $1 ORDER BY o.name`,
     [accountId]
   );
-  return r.rows.map((o) => ({ id: String(o.id), name: o.name, kind: o.kind, plan: o.plan }));
+  const out: (Organizer & { plan: Plan })[] = [];
+  for (const o of r.rows) {
+    const roles = await getOrgRoles(q, String(o.id));
+    out.push({ id: String(o.id), name: o.name, kind: o.kind, roles, roleLabel: rolesLabel(roles, o.kind), plan: o.plan });
+  }
+  return out;
 }
 
 export async function isOrgMember(q: Queryable, organizerId: string, accountId: string): Promise<boolean> {

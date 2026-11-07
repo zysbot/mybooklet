@@ -43,3 +43,7 @@
 .log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .log li { display: flex; gap: 10px; align-items: baseline; }
 .row-form .field { min-width: 0; } .row-form .field select, .row-form .field input { width: 100%; }
+
+/* 節目的參與組織與發放單位 */
+.issuer-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 8px; }
+.issuer-row select { font: inherit; padding: 4px 6px; }

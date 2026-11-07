@@ -180,7 +180,7 @@ export default async function Home() {
       <section id="companies" className="home-dark">
         <div className="home-wrap home-companies">
           <div className="home-companies-text">
-            <p className="home-eyebrow">給劇團、製作方與場館</p>
+            <p className="home-eyebrow">給劇團、製作公司與場館</p>
             <h2>把節目單交給吾冊，<br />把觀眾留在作品裡。</h2>
             <p>上傳節目單 PDF，吾冊產生入場 QR code。觀眾掃碼就能讀，不需要你另外印刷或架網站。下一檔演出的消息、問卷或優惠，也可以附在節目單下方。</p>
             <a href="mailto:gm@volumedao.xyz?subject=%E5%90%BE%E5%86%8A%E5%90%88%E4%BD%9C%E6%B4%BD%E8%AB%87" className="home-btn home-btn-light">洽談合作</a>

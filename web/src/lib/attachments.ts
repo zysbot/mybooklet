@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Db, Queryable } from "./db";
 import type { FileStore } from "./storage";
 import { ATTACHMENT_LIMIT, getPlan, taipeiToday } from "./plans";
+import { ISSUER_SQL } from "./roles";
 
 /**
  * 主辦方附加文宣：主辦方放在自己節目單下方給觀眾的資料（下一檔演出、優惠、問卷等）。
@@ -107,7 +108,7 @@ export interface OrgProductionAttachments {
 export async function listOrgAttachments(q: Queryable, organizerId: string, now: Date = new Date()): Promise<OrgProductionAttachments[]> {
   const prods = await q.query<{ id: string; title: string; last_show: Date | null }>(
     `SELECT p.id, p.title, (SELECT max(s.starts_at) FROM shows s WHERE s.production_id = p.id) AS last_show
-       FROM productions p WHERE p.organizer_id = $1 ORDER BY last_show DESC NULLS LAST, p.id DESC`,
+       FROM productions p WHERE ${ISSUER_SQL} = $1 ORDER BY last_show DESC NULLS LAST, p.id DESC`,
     [organizerId]
   );
   if (!prods.rows.length) return [];
@@ -182,7 +183,7 @@ export async function addAttachment(db: Db, store: FileStore, input: NewAttachme
 }
 
 async function checkRoom(q: Queryable, organizerId: string, productionId: string, limit: number, now: Date) {
-  const own = await q.query(`SELECT 1 FROM productions WHERE id = $1 AND organizer_id = $2`, [productionId, organizerId]);
+  const own = await q.query(`SELECT 1 FROM productions p WHERE p.id = $1 AND ${ISSUER_SQL} = $2`, [productionId, organizerId]);
   if (!own.rows.length) throw new AttachmentError("找不到這檔節目");
   const n = await q.query<{ n: string }>(
     `SELECT count(*) AS n FROM attachments a WHERE a.production_id = $1 AND ${ACTIVE}`,
@@ -203,7 +204,7 @@ export async function removeAttachment(q: Queryable, organizerId: string, attach
   const r = await q.query(
     `UPDATE attachments a SET removed_at = now()
        FROM productions p
-      WHERE a.id = $1 AND p.id = a.production_id AND p.organizer_id = $2 AND a.removed_at IS NULL
+      WHERE a.id = $1 AND p.id = a.production_id AND ${ISSUER_SQL} = $2 AND a.removed_at IS NULL
       RETURNING a.id`,
     [attachmentId, organizerId]
   );

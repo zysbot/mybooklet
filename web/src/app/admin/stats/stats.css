@@ -1,0 +1,38 @@
+/* 營運後台：觀眾統計 */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.stat-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.stat-label { font-size: 13px; color: var(--muted); }
+.stat-value { font-family: var(--serif); font-size: 28px; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--ink); }
+.stat-note { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; font-size: 13px; }
+.seg a { padding: 4px 14px; color: var(--ink); text-decoration: none; }
+.seg a[aria-current="page"] { background: var(--ink); color: var(--paper); }
+
+.cols-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.cols { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.cols figcaption { display: flex; flex-direction: column; gap: 2px; font-size: 14px; font-weight: 700; }
+.cols figcaption .small { font-weight: 400; }
+.cols { position: relative; }
+.cols-empty { position: absolute; left: 0; right: 0; top: 70px; text-align: center; }
+.cols-plot { display: flex; align-items: flex-end; gap: 2px; height: 120px; border-bottom: 1px solid var(--line); }
+.cols-col { position: relative; flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; outline: none; cursor: default; }
+.cols-bar { display: block; min-height: 0; background: var(--accent); border-radius: 4px 4px 0 0; }
+.cols-tip { position: absolute; left: 50%; transform: translateX(-50%); top: -2px; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; opacity: 0; pointer-events: none; white-space: nowrap; }
+.cols-col:hover .cols-tip, .cols-col:focus-visible .cols-tip { opacity: 1; }
+.cols-col:hover .cols-bar, .cols-col:focus-visible .cols-bar { background: var(--ink); }
+.cols-axis { display: flex; gap: 2px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cols-axis span { flex: 1; text-align: center; white-space: nowrap; overflow: visible; }
+
+.rank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
+/* 橫條（與主辦方後台同樣的樣式） */
+.bar-row { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr minmax(110px, auto); gap: 12px; align-items: center; font-size: 14px; }
+.bar-label { line-height: 1.4; }
+.bar-track { height: 10px; border-radius: 999px; background: var(--paper-deep); overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.bar-value { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+@media (max-width: 560px) {
+  .bar-row { grid-template-columns: 1fr auto; }
+  .bar-track { grid-column: 1 / -1; grid-row: 2; }
+}
