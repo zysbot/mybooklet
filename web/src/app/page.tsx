@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { listHomeProductions, type HomeProduction } from "@/lib/booklets";
 import { formatDate } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
+import { cardBackground } from "@/components/ProgramCard";
 import "./home.css";
 
 // 演出列表每 10 分鐘更新一次即可
@@ -96,7 +97,7 @@ export default async function Home() {
             <div className="home-shows">
               {shows.map((s) => (
                 <article key={s.productionId} className="home-show">
-                  <div className="home-show-cover" style={{ background: s.coverColor }}>
+                  <div className={s.coverImage ? "home-show-cover card-has-image" : "home-show-cover"} style={cardBackground(s.coverColor, s.coverImage)}>
                     <span className="home-show-genre">{s.genre ?? ""}</span>
                     <span className="home-show-vtitle" aria-hidden="true">{s.title}</span>
                   </div>

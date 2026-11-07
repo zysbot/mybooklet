@@ -69,6 +69,7 @@ export default async function BookletPage({ params }: Params) {
           companyName={b.companyName}
           startsAt={b.startsAt}
           color={b.coverColor}
+          image={b.coverImage}
           stubRight={<span style={{ fontFamily: "var(--serif)", fontSize: 13 }}>No. {formatSerial(b.serial)}</span>}
         />
       </div>
@@ -82,6 +83,8 @@ export default async function BookletPage({ params }: Params) {
           <div className="row"><span className="row-label">日期</span><span>{formatShowTime(b.startsAt)}</span></div>
           <div className="row"><span className="row-label">場地</span><span>{b.city ? `${b.venue}・${b.city}` : b.venue}</span></div>
           {b.festival && <div className="row"><span className="row-label">藝術節</span><span>{b.festival}</span></div>}
+          {b.directors.length > 0 && <div className="row"><span className="row-label">導演</span><span>{b.directors.join("、")}</span></div>}
+          {b.playwrights.length > 0 && <div className="row"><span className="row-label">編劇</span><span>{b.playwrights.join("、")}</span></div>}
           {content.duration && <div className="row"><span className="row-label">長度</span><span>{content.duration}</span></div>}
         </div>
       </div>

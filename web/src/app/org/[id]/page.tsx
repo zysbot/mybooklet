@@ -13,6 +13,7 @@ import "../../admin/admin.css";
 import "../org.css";
 import { OrgBrand } from "../OrgBrand";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { CoversPanel } from "./CoversPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "主辦方後台｜吾冊", robots: { index: false } };
@@ -87,7 +88,7 @@ export default async function OrgDashboard({ params, searchParams }: { params: P
         <div className="kpi"><span className="kpi-n">{totals.audience}</span><span className="kpi-l">不重複觀眾</span></div>
         <div className="kpi">
           <span className="kpi-n">{r.favorites.hidden ? `<${MIN_GROUP}` : r.favorites.n ?? "—"}</span>
-          <span className="kpi-l">放進前三喜歡</span>
+          <span className="kpi-l">放進前五喜歡</span>
         </div>
       </section>
 
@@ -157,6 +158,7 @@ export default async function OrgDashboard({ params, searchParams }: { params: P
           </section>
         </>
       )}
+      <CoversPanel organizerId={id} />
       <AttachmentsPanel organizerId={id} plan={plan.effective} error={attError} />
     </main>
   );

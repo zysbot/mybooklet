@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db";
 import { currentUserId } from "@/lib/session";
 import { setFavorite, removeFavorite, getFavorites, FavoriteError } from "@/lib/favorites";
 
-/** 設定或取消前三喜歡：{ claimId, rank: 1 | 2 | 3 | null } */
+/** 設定或取消前五喜歡：{ claimId, rank: 1–5 | null } */
 export async function POST(req: Request) {
   const userId = await currentUserId();
   if (!userId) return NextResponse.json({ error: "請先登入" }, { status: 401 });

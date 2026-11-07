@@ -32,6 +32,9 @@ export interface ProductionInput {
   workTitle?: string;
   /** 藝術節或系列；不屬於藝術節就不填 */
   festival?: string;
+  /** 導演、編劇：多人用頓號或逗號分開 */
+  directors?: string;
+  playwrights?: string;
   intro?: string;
   designs: DesignInput[];
   defaultDesign: string;
@@ -79,6 +82,8 @@ export function validateProduction(input: ProductionInput): void {
   if ((input.producerName ?? "").length > 80) throw new ProductionError("製作方名稱過長");
   if ((input.workTitle ?? "").length > 80) throw new ProductionError("作品名稱請在 80 字以內");
   if (input.festival && !isFestival(input.festival)) throw new ProductionError("藝術節請從選單選擇");
+  parseNames(input.directors ?? "");
+  parseNames(input.playwrights ?? "");
   if ((input.intro ?? "").length > 2000) throw new ProductionError("節目介紹請在 2000 字以內");
 
   if (!Array.isArray(input.designs) || input.designs.length < 1 || input.designs.length > 6) {
@@ -167,9 +172,10 @@ export async function createProduction(
     const companyId = await orgId(q, company, "company");
     const producerId = input.producerName?.trim() ? await orgId(q, input.producerName.trim(), "producer") : null;
     const prod = await q.query<{ id: string }>(
-      `INSERT INTO productions (organizer_id, title, company_name, genre, producer_id, work_title, festival)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [companyId, title, company, input.genre, producerId, normalizeWork(input.workTitle, title), input.festival || null]
+      `INSERT INTO productions (organizer_id, title, company_name, genre, producer_id, work_title, festival, directors, playwrights)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [companyId, title, company, input.genre, producerId, normalizeWork(input.workTitle, title), input.festival || null,
+       parseNames(input.directors ?? ""), parseNames(input.playwrights ?? "")]
     );
     const pid = String(prod.rows[0].id);
 
@@ -210,6 +216,19 @@ export async function createProduction(
 function normalizeWork(work: string | undefined, title: string): string | null {
   const w = (work ?? "").trim();
   return w && w !== title ? w : null;
+}
+
+/** 「甲、乙, 丙」→ ["甲", "乙", "丙"]；最多 8 人，每人 40 字以內 */
+export function parseNames(raw: string): string[] {
+  const names = [...new Set(raw.split(/[、,，;；\/／\n]+/).map((x) => x.trim()).filter(Boolean))];
+  if (names.length > 8) throw new ProductionError("每個職務最多填 8 人");
+  if (names.some((n) => n.length > 40)) throw new ProductionError("姓名請在 40 字以內");
+  return names;
+}
+
+/** 修改既有節目的導演、編劇（營運後台） */
+export async function setProductionCredits(q: Queryable, productionId: string, directors: string, playwrights: string): Promise<void> {
+  await q.query(`UPDATE productions SET directors = $2, playwrights = $3 WHERE id = $1`, [productionId, parseNames(directors), parseNames(playwrights)]);
 }
 
 /** 修改既有節目的作品名稱與藝術節（營運後台） */

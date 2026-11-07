@@ -6,6 +6,7 @@ import { FREE_CLAIM_LIMIT, freeUsage } from "@/lib/plans";
 import { formatShowTime } from "@/lib/format";
 import { OrgBrand } from "../OrgBrand";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { CoversPanel } from "./CoversPanel";
 
 /** 免費方案的主辦方後台：只有每場份數與鏈上寫入數，沒有觀眾分析 */
 export async function FreeView({ organizerId, adminNote, attError }: { organizerId: string; adminNote: React.ReactNode; attError?: string }) {
@@ -76,6 +77,7 @@ export async function FreeView({ organizerId, adminNote, attError }: { organizer
         </p>
       </section>
 
+      <CoversPanel organizerId={organizerId} />
       <AttachmentsPanel organizerId={organizerId} plan="free" error={attError} />
 
       <section className="panel">

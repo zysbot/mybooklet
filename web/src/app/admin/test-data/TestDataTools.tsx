@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TEST_CATALOG, testClaimWindow, type TestProduction } from "@/lib/test-catalog";
+import { TEST_CATALOG, testClaimWindow, testShowTimes, type TestProduction } from "@/lib/test-catalog";
 import { uploadPdfPages, finalizePdfUpload } from "@/lib/pdf-upload";
 
 type Status = { text: string; state: "wait" | "work" | "ok" | "skip" | "error" };
@@ -55,10 +55,12 @@ export function TestDataTools({
         genre: t.genre,
         producerName: t.producer,
         festival: t.festival,
+        directors: t.directors,
+        playwrights: t.playwrights,
         intro: t.intro,
         designs: [{ key: "regular", label: "一般場", coverColor: t.coverColor }],
         defaultDesign: "regular",
-        shows: [{ startsAt: t.startsAt, venue: t.venue, maxClaims: 300, ...testClaimWindow(t.startsAt) }],
+        shows: testShowTimes(t).map((at) => ({ startsAt: at, venue: t.venue, maxClaims: 300, ...testClaimWindow(at) })),
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -103,7 +105,21 @@ export function TestDataTools({
       res.ok && r.more
         ? `已處理 ${r.viewers} 位、新增 ${r.claims} 份領取。還沒做完，請再按一次「建立測試觀眾並領取」。`
         : res.ok
-        ? `完成：${r.viewers} 位測試觀眾，找到 ${r.shows} 檔測試節目，新增 ${r.claims} 份領取、${r.favorites} 個前三喜歡${r.includedUserClaims ? `；你的帳號新增 ${r.includedUserClaims} 份` : ""}${r.skipped ? `；${r.skipped} 份因不在開放時間略過` : ""}。上鏈會在明天的每日批次進行；要馬上看到，按下方「立即上鏈」。`
+        ? `完成：${r.viewers} 位測試觀眾，找到 ${r.shows} 檔測試節目，新增 ${r.claims} 份領取、${r.favorites} 個前五喜歡${r.includedUserClaims ? `；你的帳號新增 ${r.includedUserClaims} 份` : ""}${r.skipped ? `；${r.skipped} 份因不在開放時間略過` : ""}。上鏈會在明天的每日批次進行；要馬上看到，按下方「立即上鏈」。`
+        : r.error ?? "失敗"
+    );
+    setSeedBusy(false);
+    router.refresh();
+  }
+
+  async function syncCatalog() {
+    setSeedBusy(true);
+    setSeedMsg(null);
+    const res = await fetch("/api/admin/test-data/viewers", { method: "PUT" });
+    const r = await res.json().catch(() => ({}));
+    setSeedMsg(
+      res.ok
+        ? `已更新 ${r.productions} 檔測試節目：新增 ${r.showsAdded} 個場次、調整 ${r.showsMoved} 個場次時間。${r.showsAdded ? "請到下方按「把場次寫入合約」，再清除並重新建立測試觀眾，觀眾就會分散到各場次。" : ""}`
         : r.error ?? "失敗"
     );
     setSeedBusy(false);
@@ -189,7 +205,7 @@ export function TestDataTools({
                   <td>{t.genre}</td>
                   <td>{t.company}{t.producer ? <span className="small muted"><br />製作：{t.producer}</span> : null}</td>
                   <td>{t.venue}</td>
-                  <td>{t.startsAt.slice(0, 10)}</td>
+                  <td>{t.single ? t.startsAt.slice(0, 10) : `${testShowTimes(t)[0].slice(0, 10)} 起週末四場`}</td>
                   <td className={files[t.file] ? "status-ok" : "muted"}>{files[t.file] ? "已選" : "未選"}</td>
                   <td className={status[t.file]?.state === "error" ? "status-none" : ""}>{status[t.file]?.text ?? ""}</td>
                 </tr>
@@ -206,7 +222,7 @@ export function TestDataTools({
       <section className="panel" aria-labelledby="viewers-title">
         <h2 id="viewers-title">2. 建立 50 位測試觀眾並領取</h2>
         <p className="muted" style={{ margin: 0, lineHeight: 1.7, fontSize: 14 }}>
-          測試觀眾依節目熱門程度領取，每人至少兩檔、至少兩種類型，約六成會標記前三喜歡；一律公開收藏，用來看節目單下方的頭像列與個人頁。測試觀眾無法登入。
+          測試觀眾依節目熱門程度領取，每人至少兩檔、至少兩種類型，約六成會標記前五喜歡；一律公開收藏，用來看節目單下方的頭像列與個人頁。測試觀眾無法登入。
           目前已有 {testViewerCount} 位測試觀眾。請在手動上架的節目建立後再執行，才會包含進來；可以重複執行。
         </p>
         <label className="field" style={{ maxWidth: 480 }}>
@@ -219,7 +235,12 @@ export function TestDataTools({
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button type="button" className="btn btn-dark" onClick={seed} disabled={seedBusy}>{seedBusy ? "處理中…" : "建立測試觀眾並領取"}</button>
           <button type="button" className="btn btn-quiet" onClick={clear} disabled={seedBusy || testViewerCount === 0}>清除測試觀眾</button>
+          <button type="button" className="btn btn-quiet" onClick={syncCatalog} disabled={seedBusy}>更新測試節目（場次、藝術節、創作者）</button>
         </div>
+        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>
+          測試節目除了《第三個房間》《島嶼合唱》只演一場，其他都是週末四場（五 19:30、六 14:30、六 19:30、日 14:30），測試觀眾隨機分到其中一場。
+          已上架的舊測試節目按「更新測試節目」就會補上場次；之後按「把場次寫入合約」，再「清除測試觀眾」並重新建立。
+        </p>
         {seedMsg && <p role="status" style={{ margin: 0, lineHeight: 1.7 }}>{seedMsg}</p>}
       </section>
 

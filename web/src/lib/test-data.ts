@@ -2,7 +2,8 @@ import type { Db } from "./db";
 import { findOrCreateUser } from "./users";
 import { claimShow, ClaimError } from "./claim";
 import { setFavorite } from "./favorites";
-import { TEST_CATALOG } from "./test-catalog";
+import { TEST_CATALOG, testClaimWindow, testShowTimes } from "./test-catalog";
+import { newClaimCode, parseNames } from "./productions";
 
 /** 測試觀眾的識別：Google 帳號 ID 以這個開頭（不是真的 Google 帳號，無法登入） */
 export const TEST_VIEWER_PREFIX = "test-viewer-";
@@ -25,21 +26,29 @@ interface TestShow {
   validTo: Date;
 }
 
-async function findTestShows(db: Db): Promise<TestShow[]> {
-  const r = await db.query<{ show_id: string; title: string; genre: string; code: string; starts_at: Date; valid_from: Date; valid_to: Date }>(
-    `SELECT s.id AS show_id, p.title, p.genre, cc.code, s.starts_at, cc.valid_from, cc.valid_to
+interface TestProd {
+  productionId: string;
+  title: string;
+  genre: string;
+  startsAt: Date;
+  shows: TestShow[];
+}
+
+/** 測試節目與它的所有場次（同名節目被建立多次時，只取最早建立的那一檔） */
+async function findTestProductions(db: Db): Promise<TestProd[]> {
+  const r = await db.query<{ production_id: string; show_id: string; title: string; genre: string; code: string; starts_at: Date; valid_from: Date; valid_to: Date }>(
+    `SELECT p.id AS production_id, s.id AS show_id, p.title, p.genre, cc.code, s.starts_at, cc.valid_from, cc.valid_to
        FROM shows s
        JOIN productions p ON p.id = s.production_id
        JOIN claim_codes cc ON cc.show_id = s.id
-      WHERE p.title = ANY($1::text[])
-      ORDER BY s.starts_at`,
+      WHERE p.id IN (SELECT min(id) FROM productions WHERE title = ANY($1::text[]) GROUP BY title)
+      ORDER BY s.starts_at, s.id`,
     [TEST_CATALOG.map((t) => t.title)]
   );
-  // 同一檔節目若被建立多次，只取第一筆
-  const seen = new Set<string>();
-  return r.rows
-    .filter((x) => (seen.has(x.title) ? false : (seen.add(x.title), true)))
-    .map((x) => ({
+  const byProd = new Map<string, TestProd>();
+  for (const x of r.rows) {
+    const id = String(x.production_id);
+    const show: TestShow = {
       showId: String(x.show_id),
       title: x.title,
       genre: x.genre,
@@ -47,7 +56,12 @@ async function findTestShows(db: Db): Promise<TestShow[]> {
       startsAt: new Date(x.starts_at),
       validFrom: new Date(x.valid_from),
       validTo: new Date(x.valid_to),
-    }));
+    };
+    const p = byProd.get(id);
+    if (p) p.shows.push(show);
+    else byProd.set(id, { productionId: id, title: x.title, genre: x.genre, startsAt: show.startsAt, shows: [show] });
+  }
+  return [...byProd.values()].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
 /** 領取時間：演出前 20 到 80 分鐘；在開放時間之內，且不晚於現在 */
@@ -71,7 +85,7 @@ export interface SeedReport {
 }
 
 /**
- * 建立 50 位測試觀眾，依每檔節目的熱門程度領取，每人至少涉及兩種類型；部分觀眾標記前三喜歡。
+ * 建立 50 位測試觀眾，依每檔節目的熱門程度領取，每人至少涉及兩種類型；部分觀眾標記前五喜歡。
  * 測試觀眾一律「公開收藏」，用來測試節目單下方的頭像列與個人頁。
  * includeUserId：另外讓這位真實觀眾領取所有測試節目（用來測試自己的收藏冊排列）。
  * 可以重複執行，已領過的不會重複。
@@ -80,7 +94,7 @@ export async function seedTestViewers(db: Db, opts: { includeUserId?: string; no
   const now = opts.now ?? new Date();
   const started = Date.now();
   const budget = opts.budgetMs ?? Infinity;
-  const shows = await findTestShows(db);
+  const shows = await findTestProductions(db);
   const report: SeedReport = { viewers: 0, shows: shows.length, claims: 0, skipped: 0, favorites: 0, includedUserClaims: 0, more: false };
   if (shows.length === 0) return report;
 
@@ -95,17 +109,28 @@ export async function seedTestViewers(db: Db, opts: { includeUserId?: string; no
   );
 
   const reach = new Map(TEST_CATALOG.map((t) => [t.title, t.reach]));
-  const r = rng(20261106);
+  // 每位觀眾各自一組固定亂數：重複執行時挑到的節目一樣，不會越領越多
+  let r = rng(20261106);
 
-  const claimOne = async (userId: string, show: TestShow) => {
-    const t = claimTime(show, now, r);
-    if (!t) return null;
-    try {
-      return await claimShow(db, userId, show.code, t);
-    } catch (err) {
-      if (err instanceof ClaimError) return null;
-      throw err;
+  /** 領這檔節目：已領過任一場就沿用；否則隨機挑一場 */
+  const claimOne = async (userId: string, prod: TestProd) => {
+    const had = await db.query<{ id: string }>(
+      `SELECT c.id FROM claims c JOIN shows s ON s.id = c.show_id WHERE c.user_id = $1 AND s.production_id = $2 LIMIT 1`,
+      [userId, prod.productionId]
+    );
+    if (had.rows[0]) return { claimId: had.rows[0].id, alreadyClaimed: true };
+    const order = [...prod.shows].sort(() => r() - 0.5);
+    for (const show of order) {
+      const t = claimTime(show, now, r);
+      if (!t) continue;
+      try {
+        return await claimShow(db, userId, show.code, t);
+      } catch (err) {
+        if (err instanceof ClaimError) continue;
+        throw err;
+      }
     }
+    return null;
   };
 
   for (let i = 1; i <= TEST_VIEWER_COUNT; i++) {
@@ -113,6 +138,7 @@ export async function seedTestViewers(db: Db, opts: { includeUserId?: string; no
       report.more = true;
       return report;
     }
+    r = rng(20261106 + i * 7919);
     const n = String(i).padStart(2, "0");
     const user = await findOrCreateUser(db, { provider: "google", subject: `${TEST_VIEWER_PREFIX}${n}` });
     await db.query(`UPDATE users SET social_public = TRUE WHERE id = $1`, [user.id]);
@@ -135,9 +161,10 @@ export async function seedTestViewers(db: Db, opts: { includeUserId?: string; no
         if (!c.alreadyClaimed) report.claims++;
       } else report.skipped++;
     }
-    // 約六成的觀眾標記前三喜歡
-    if (claimIds.length > 0 && r() < 0.6) {
-      const ranked = [...claimIds].sort(() => r() - 0.5).slice(0, 3);
+    // 約六成的觀眾標記前五喜歡（1 到 5 名，看領了幾份）
+    const hasFav = await db.query(`SELECT 1 FROM favorites WHERE user_id = $1 LIMIT 1`, [user.id]);
+    if (claimIds.length > 0 && !hasFav.rows[0] && r() < 0.6) {
+      const ranked = [...claimIds].sort(() => r() - 0.5).slice(0, 1 + Math.floor(r() * 5));
       for (let k = 0; k < ranked.length; k++) {
         await setFavorite(db, user.id, ranked[k], k + 1);
         report.favorites++;
@@ -165,4 +192,70 @@ export async function clearTestViewers(db: Db): Promise<number> {
     await q.query(`DELETE FROM users WHERE id = ANY($1::bigint[])`, [ids]);
     return ids.length;
   });
+}
+
+export interface CatalogSyncReport {
+  productions: number;
+  showsAdded: number;
+  showsMoved: number;
+}
+
+/**
+ * 把資料庫裡已上架的測試節目更新成測試目錄現在的樣子：藝術節、導演、編劇，以及場次
+ * （週末四場或單一場次）。新增的場次要再按「把場次寫入合約」。可以重複執行。
+ */
+export async function syncTestCatalog(db: Db, siteUrl: string, now: Date = new Date()): Promise<CatalogSyncReport> {
+  const report: CatalogSyncReport = { productions: 0, showsAdded: 0, showsMoved: 0 };
+  for (const t of TEST_CATALOG) {
+    const p = await db.query<{ id: string }>(`SELECT min(id) AS id FROM productions WHERE title = $1`, [t.title]);
+    const pid = p.rows[0]?.id;
+    if (!pid) continue;
+    report.productions++;
+    await db.query(`UPDATE productions SET festival = $2, directors = $3, playwrights = $4 WHERE id = $1`, [
+      pid,
+      t.festival ?? null,
+      parseNames(t.directors ?? ""),
+      parseNames(t.playwrights ?? ""),
+    ]);
+
+    const wanted = testShowTimes(t).map((x) => new Date(x));
+    const existing = await db.query<{ id: string; starts_at: Date; venue: string; venue_id: string | null }>(
+      `SELECT id, starts_at, venue, venue_id FROM shows WHERE production_id = $1 ORDER BY starts_at, id`,
+      [pid]
+    );
+    const has = (d: Date) => existing.rows.some((s) => new Date(s.starts_at).getTime() === d.getTime());
+    const missing = wanted.filter((d) => !has(d));
+    // 舊的單一場次不在新時間表上：移到同一天的場次（沒有就移到第一場）
+    for (const s of existing.rows) {
+      if (!missing.length) break;
+      const at = new Date(s.starts_at);
+      if (wanted.some((d) => d.getTime() === at.getTime())) continue;
+      const taipeiDay = (d: Date) => new Date(d.getTime() + 8 * 3600_000).toISOString().slice(0, 10);
+      const sameDay = missing.find((d) => taipeiDay(d) === taipeiDay(at)) ?? missing[0];
+      const w = testClaimWindow(sameDay.toISOString(), now);
+      await db.query(`UPDATE shows SET starts_at = $2 WHERE id = $1`, [s.id, sameDay]);
+      await db.query(`UPDATE claim_codes SET valid_from = $2, valid_to = $3 WHERE show_id = $1`, [s.id, w.opensAt, w.closesAt]);
+      missing.splice(missing.indexOf(sameDay), 1);
+      report.showsMoved++;
+    }
+    const base = existing.rows[0];
+    if (!base) continue;
+    for (const d of missing) {
+      const show = await db.query<{ id: string }>(
+        `INSERT INTO shows (production_id, starts_at, venue, venue_id) VALUES ($1, $2, $3, $4) RETURNING id`,
+        [pid, d, base.venue, base.venue_id]
+      );
+      const showId = String(show.rows[0].id);
+      await db.query(`UPDATE shows SET metadata_uri = $2 WHERE id = $1`, [showId, `${siteUrl}/api/metadata/${showId}`]);
+      const w = testClaimWindow(d.toISOString(), now);
+      await db.query(`INSERT INTO claim_codes (show_id, code, valid_from, valid_to, max_claims) VALUES ($1, $2, $3, $4, 300)`, [
+        showId,
+        newClaimCode(),
+        w.opensAt,
+        w.closesAt,
+      ]);
+      report.showsAdded++;
+    }
+  }
+  return report;
 }

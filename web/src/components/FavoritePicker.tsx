@@ -9,7 +9,7 @@ interface Fav {
   title: string;
 }
 
-/** 把這份節目單放進「我的前三喜歡」 */
+/** 把這份節目單放進「我的前五喜歡」 */
 export function FavoritePicker({ claimId, title, initial }: { claimId: string; title: string; initial: Fav[] }) {
   const router = useRouter();
   const [favs, setFavs] = useState<Fav[]>(initial);
@@ -36,10 +36,10 @@ export function FavoritePicker({ claimId, title, initial }: { claimId: string; t
   return (
     <section className="fav" aria-labelledby="fav-title">
       <h2 id="fav-title" style={{ margin: 0, fontFamily: "var(--serif)", fontSize: 17 }}>
-        {mine ? `這是你前三喜歡的第 ${mine} 名` : "放進我的前三喜歡"}
+        {mine ? `這是你前五喜歡的第 ${mine} 名` : "放進我的前五喜歡"}
       </h2>
       <div className="fav-row" role="group" aria-label="選擇名次">
-        {[1, 2, 3].map((rank) => {
+        {[1, 2, 3, 4, 5].map((rank) => {
           const holder = favs.find((f) => f.rank === rank);
           const isMine = holder?.claimId === claimId;
           return (

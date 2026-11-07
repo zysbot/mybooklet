@@ -84,6 +84,7 @@ a { color: inherit; }
 /* 長標題在卡面高度內換到下一行（直排往左），不把日期與票根擠出卡面 */
 .card-title { writing-mode: vertical-rl; font-family: var(--serif); font-weight: 700; letter-spacing: 0.15em; max-height: 100%; overflow: hidden; }
 .card-meta { flex-shrink: 0; }
+.card-has-image .card-title, .card-has-image .card-meta, .card-has-image .card-stub, .card-has-image.home-show-cover span { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
 .card-tear { border-top: 1.5px dashed rgba(244, 239, 230, 0.5); margin: 0 14px; }
 .card-stub { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 11px; letter-spacing: 0.1em; }
 .card-notch { position: absolute; border-radius: 50%; background: var(--paper); }
@@ -135,6 +136,8 @@ a { color: inherit; }
 
 /* 收藏冊 */
 .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.subpills { margin-top: -6px; padding-left: 12px; border-left: 2px solid var(--line); }
+.subpills .pill { min-height: 34px; font-size: 13px; }
 .pill {
   min-height: 36px; padding: 0 16px; border-radius: 999px; font: inherit; font-size: 14px; cursor: pointer;
   border: 1.5px solid #cfc7b8; background: transparent; color: var(--ink);
@@ -218,7 +221,9 @@ a { color: inherit; }
 
 /* 收藏冊：分組標題與前三喜歡 */
 .group-title { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 18px; }
-.top3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+/* 前五喜歡：手機一列左右滑，電腦一排五個 */
+.top3 { display: flex; gap: 12px; overflow-x: auto; padding: 10px 6px 6px; margin: -10px -6px 0; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.top3 > .top3-slot { flex: 0 0 104px; scroll-snap-align: start; }
 .top3-slot { position: relative; display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; }
 .top3-rank {
   position: absolute; top: -8px; left: -6px; z-index: 1; width: 26px; height: 26px; border-radius: 50%;
@@ -226,10 +231,10 @@ a { color: inherit; }
   background: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(28, 26, 23, 0.25);
 }
 .top3-card {
-  height: 150px; border-radius: 8px; display: flex; justify-content: flex-end; padding: 12px 10px;
+  height: 150px; overflow: hidden; border-radius: 8px; display: flex; justify-content: flex-end; padding: 12px 10px;
   color: var(--paper); box-shadow: 0 6px 14px rgba(28, 26, 23, 0.18);
 }
-.top3-title { writing-mode: vertical-rl; font-family: var(--serif); font-weight: 700; font-size: 18px; letter-spacing: 0.12em; }
+.top3-title { writing-mode: vertical-rl; font-family: var(--serif); font-weight: 700; font-size: 18px; letter-spacing: 0.12em; max-height: 100%; overflow: hidden; }
 .top3-meta { font-size: 11px; color: var(--muted); text-align: center; }
 .top3-empty .top3-rank { background: #cfc7b8; box-shadow: none; }
 .top3-empty .top3-card { border: 1.5px dashed #cfc7b8; box-shadow: none; }
@@ -300,7 +305,8 @@ a { color: inherit; }
 @media (min-width: 760px) {
   .page-wide { max-width: 1200px; padding-left: 32px; padding-right: 32px; }
   .page-wide .grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 18px; }
-  .page-wide .top3 { max-width: 640px; }
+  .top3 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
+  .page-wide .top3 { max-width: 900px; }
   .page-wide .pills { flex-wrap: wrap; }
   .pbook-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); column-gap: 32px; }
   .legal { max-width: 760px; }
@@ -333,3 +339,19 @@ a { color: inherit; }
 .attach-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
 .attach-actions .pill { text-decoration: none; display: inline-flex; align-items: center; }
 .leave-host { margin: 0; padding: 14px 16px; border-radius: 10px; background: var(--paper-deep); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 16px; word-break: break-all; }
+
+/* 卡面圖片上傳（主辦方後台、營運後台） */
+.cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 20px; }
+.cover-up { display: flex; gap: 14px; align-items: flex-start; }
+.cover-up .card { width: 168px; flex-shrink: 0; }
+.cover-up .link-btn { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 8px; border: 1.5px solid var(--ink); background: transparent; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+
+/* 跟你足跡最像的人（收藏冊下方） */
+.kin-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.kin-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #fffdf8; border: 1px solid var(--line); text-decoration: none; color: inherit; }
+.kin-item:hover { border-color: var(--ink); }
+.kin-rank { width: 18px; font-family: var(--serif); font-weight: 700; color: var(--muted); text-align: center; flex-shrink: 0; }
+.kin-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.kin-name { font-size: 14px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.kin-meta { font-size: 12px; color: var(--muted); }
+.kin-pct { font-family: var(--serif); font-weight: 700; font-size: 18px; color: var(--accent); flex-shrink: 0; }

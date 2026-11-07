@@ -1,3 +1,4 @@
+import { cardBackground } from "@/components/ProgramCard";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -48,7 +49,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ public
         ) : (
           p.booklets.map((b) => (
             <div key={b.productionId} className="pbook">
-              <span className="pbook-cover" style={{ background: b.coverColor }} aria-hidden="true" />
+              <span className="pbook-cover" style={cardBackground(b.coverColor, b.coverImage)} aria-hidden="true" />
               <div className="stack" style={{ gap: 2, minWidth: 0 }}>
                 <span className="pbook-title">
                   {b.title}

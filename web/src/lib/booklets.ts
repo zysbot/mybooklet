@@ -11,6 +11,8 @@ export interface ShowInfo {
   venue: string;
   startsAt: Date;
   coverColor: string;
+  /** 主辦方上傳的卡面圖片；沒有就是單色 */
+  coverImage: string | null;
   designLabel: string;
   content: BookletContent;
   metadataUri: string | null;
@@ -21,6 +23,8 @@ export interface ShowInfo {
   workTitle: string;
   festival: string | null;
   city: string | null;
+  directors: string[];
+  playwrights: string[];
 }
 
 export interface BookletContent {
@@ -46,11 +50,14 @@ export interface BookletSummary {
   productionId: string;
   workTitle: string;
   festival: string | null;
-  /** 前三喜歡的名次；沒有標記為 null */
+  directors: string[];
+  playwrights: string[];
+  /** 前五喜歡的名次；沒有標記為 null */
   favoriteRank: number | null;
   startsAt: Date;
   serial: number;
   coverColor: string;
+  coverImage: string | null;
   chainStatus: "pending" | "submitted" | "minted" | "failed";
 }
 
@@ -71,8 +78,8 @@ export interface BookletDetail extends ShowInfo {
 
 // 場次的卡面：場次自己指定的版本，沒有就用節目的預設版本
 const SHOW_SELECT = `
-  s.id AS show_id, p.id AS production_id, COALESCE(NULLIF(p.work_title, ''), p.title) AS work_title, p.festival, p.title, p.company_name, p.genre, s.venue, s.starts_at, s.metadata_uri,
-  d.id AS design_id, d.page_count, d.cover_color, d.label AS design_label, d.content, d.reading_direction
+  s.id AS show_id, p.id AS production_id, COALESCE(NULLIF(p.work_title, ''), p.title) AS work_title, p.festival, p.directors, p.playwrights, p.title, p.company_name, p.genre, s.venue, s.starts_at, s.metadata_uri,
+  d.id AS design_id, d.page_count, d.cover_color, d.cover_image_url, d.label AS design_label, d.content, d.reading_direction
   FROM shows s
   JOIN productions p ON p.id = s.production_id
   JOIN designs d ON d.id = COALESCE(s.design_id, p.default_design_id)`;
@@ -82,6 +89,8 @@ type ShowRow = {
   production_id: string;
   work_title: string;
   festival: string | null;
+  directors: string[] | null;
+  playwrights: string[] | null;
   design_id: string;
   page_count: number;
   title: string;
@@ -91,6 +100,7 @@ type ShowRow = {
   starts_at: Date;
   metadata_uri: string | null;
   cover_color: string;
+  cover_image_url: string | null;
   design_label: string;
   content: BookletContent | string;
   reading_direction: "ltr" | "rtl";
@@ -107,6 +117,7 @@ function toShowInfo(r: ShowRow): ShowInfo {
     venue: r.venue,
     startsAt: new Date(r.starts_at),
     coverColor: r.cover_color,
+    coverImage: r.cover_image_url,
     designLabel: r.design_label,
     content: typeof r.content === "string" ? JSON.parse(r.content) : (r.content ?? {}),
     metadataUri: r.metadata_uri,
@@ -115,6 +126,8 @@ function toShowInfo(r: ShowRow): ShowInfo {
     workTitle: r.work_title,
     festival: r.festival,
     city: cityOfVenue(r.venue),
+    directors: r.directors ?? [],
+    playwrights: r.playwrights ?? [],
   };
 }
 
@@ -155,10 +168,13 @@ export async function listUserBooklets(q: Queryable, userId: string): Promise<Bo
     productionId: String(row.production_id),
     workTitle: row.work_title,
     festival: row.festival,
+    directors: row.directors ?? [],
+    playwrights: row.playwrights ?? [],
     favoriteRank: row.fav_rank === null ? null : Number(row.fav_rank),
     startsAt: new Date(row.starts_at),
     serial: Number(row.serial),
     coverColor: row.cover_color,
+    coverImage: row.cover_image_url,
     chainStatus: row.chain_status,
   }));
 }
@@ -213,12 +229,13 @@ export interface HomeProduction {
   upcoming: boolean;
   /** 一律用節目的預設卡面（特殊卡面不公開） */
   coverColor: string;
+  coverImage: string | null;
 }
 
 /** 首頁「這些演出有吾冊節目單」：先列即將演出（由近到遠），再補最近演完的，最多 limit 檔 */
 export async function listHomeProductions(q: Queryable, now: Date = new Date(), limit = 8): Promise<HomeProduction[]> {
-  const r = await q.query<{ id: string; title: string; company_name: string; genre: string | null; cover_color: string; next_at: Date | null; next_venue: string | null; last_at: Date | null; last_venue: string | null }>(
-    `SELECT p.id, p.title, p.company_name, p.genre, d.cover_color,
+  const r = await q.query<{ id: string; title: string; company_name: string; genre: string | null; cover_color: string; cover_image_url: string | null; next_at: Date | null; next_venue: string | null; last_at: Date | null; last_venue: string | null }>(
+    `SELECT p.id, p.title, p.company_name, p.genre, d.cover_color, d.cover_image_url,
             nx.starts_at AS next_at, nx.venue AS next_venue, ls.starts_at AS last_at, ls.venue AS last_venue
        FROM productions p
        JOIN designs d ON d.id = p.default_design_id
@@ -238,6 +255,7 @@ export async function listHomeProductions(q: Queryable, now: Date = new Date(), 
       startsAt: new Date((upcoming ? x.next_at : x.last_at)!),
       upcoming,
       coverColor: x.cover_color,
+      coverImage: x.cover_image_url,
     };
   });
   const up = rows.filter((x) => x.upcoming).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());

@@ -8,6 +8,8 @@ import { Gallery } from "./Gallery";
 import { LoginGate, LogoutButton } from "./LoginGate";
 import { Avatar } from "@/components/Avatar";
 import { SocialToggle } from "@/components/social/SocialToggle";
+import { Kindred } from "@/components/social/Kindred";
+import { getKindred } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "我的收藏冊｜吾冊" };
@@ -30,7 +32,11 @@ export default async function MyCollectionPage() {
     );
   }
 
-  const booklets = await listUserBooklets(db, user.id);
+  const teen = user.age_group === "teen";
+  const [booklets, kindred] = await Promise.all([
+    listUserBooklets(db, user.id),
+    teen ? Promise.resolve(null) : getKindred(db, user.id),
+  ]);
   const firstYear = booklets.length ? Math.min(...booklets.map((b) => b.startsAt.getFullYear())) : null;
 
   return (
@@ -63,14 +69,18 @@ export default async function MyCollectionPage() {
             productionId: b.productionId,
             workTitle: b.workTitle,
             festival: b.festival,
+            directors: b.directors,
+            playwrights: b.playwrights,
             favoriteRank: b.favoriteRank,
             startsAt: b.startsAt.toISOString(),
             serial: b.serial,
             color: b.coverColor,
+            image: b.coverImage,
           }))}
         />
       )}
-      <SocialToggle initial={user.social_public} publicId={user.public_id} teen={user.age_group === "teen"} />
+      {kindred && booklets.length > 0 && <Kindred people={kindred.people} total={kindred.total} viewerPublic={user.social_public} />}
+      <SocialToggle initial={user.social_public} publicId={user.public_id} teen={teen} />
       <p className="small muted center" style={{ margin: "8px 0 0" }}>每次入場掃碼，新的節目單會自動出現在這裡</p>
     </main>
   );

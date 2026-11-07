@@ -28,12 +28,21 @@ interface Created {
 }
 
 const toIso = (local: string) => `${local}:00+08:00`;
+
+/** 台灣最常見的週末四場：週五晚、週六下午與晚上、週日下午（輸入週五的日期） */
+function weekendShows(friday: string): string[] {
+  const d = new Date(`${friday}T00:00:00Z`);
+  const day = (n: number) => new Date(d.getTime() + n * 86400_000).toISOString().slice(0, 10);
+  return [`${day(0)}T19:30`, `${day(1)}T14:30`, `${day(1)}T19:30`, `${day(2)}T14:30`];
+}
 let rowId = 1;
 
 export function ProductionForm({ workTitles }: { workTitles: string[] }) {
   const [title, setTitle] = useState("");
   const [workTitle, setWorkTitle] = useState("");
   const [festival, setFestival] = useState("");
+  const [directors, setDirectors] = useState("");
+  const [playwrights, setPlaywrights] = useState("");
   const [genre, setGenre] = useState("");
   const [company, setCompany] = useState("");
   const [producer, setProducer] = useState("");
@@ -42,6 +51,7 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
   const [defaultDesign, setDefaultDesign] = useState("d0");
   const [shows, setShows] = useState<ShowRow[]>([{ id: 0, startsAt: "", venue: "", design: "d0", maxClaims: "" }]);
   const [testWindow, setTestWindow] = useState(true);
+  const [weekend, setWeekend] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
@@ -64,6 +74,8 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
       producerName: producer || undefined,
       workTitle: workTitle || undefined,
       festival: festival || undefined,
+      directors,
+      playwrights,
       intro,
       designs,
       defaultDesign,
@@ -173,6 +185,14 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
               {FESTIVALS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </label>
+          <label className="field">
+            <span>導演（選填，多人用頓號分開）</span>
+            <input value={directors} onChange={(e) => setDirectors(e.target.value)} maxLength={300} placeholder="例如：王小明、李小華" />
+          </label>
+          <label className="field">
+            <span>編劇（選填，多人用頓號分開）</span>
+            <input value={playwrights} onChange={(e) => setPlaywrights(e.target.value)} maxLength={300} />
+          </label>
         </div>
         <label className="field">
           <span>節目介紹（選填；有上傳 PDF 時觀眾主要看 PDF）</span>
@@ -182,9 +202,12 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
 
       <section className="panel" aria-labelledby="design-title">
         <div className="panel-head">
-          <h2 id="design-title">卡面版本</h2>
-          <span className="small muted">例如首演場、壓軸場要用不同卡面時，再新增版本</span>
+          <h2 id="design-title">節目單版本</h2>
         </div>
+        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>
+          每個版本有自己的卡面與節目單 PDF。標「所有場次」的版本用在每一場；某一場要用不同的節目單（例如首演場特刊），
+          再新增一個「單一場次」版本，然後在下方場次把那一場指定給它。
+        </p>
         {designs.map((d) => (
           <div className="row-form" key={d.key}>
             <label className="field" style={{ flex: "1 1 160px" }}>
@@ -200,8 +223,9 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
             </fieldset>
             <label className="inline-check">
               <input type="radio" name="default-design" checked={defaultDesign === d.key} onChange={() => setDefaultDesign(d.key)} />
-              預設
+              所有場次
             </label>
+            {defaultDesign !== d.key && <span className="small muted">單一場次：在下方場次指定</span>}
             {designs.length > 1 && (
               <button type="button" className="link-btn" style={{ background: "transparent", font: "inherit", fontSize: 13 }}
                 onClick={() => {
@@ -220,7 +244,7 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
               const key = `d${rowId++}`;
               setDesigns((xs) => [...xs, { key, label: xs.length === 1 ? "首演場" : "壓軸場", coverColor: COVER_COLORS[xs.length % COVER_COLORS.length] }]);
             }}>
-            ＋ 新增卡面版本
+            ＋ 新增單一場次的版本
           </button>
         )}
       </section>
@@ -241,10 +265,10 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
                 {VENUES.map((v) => <option key={v.name} value={v.name}>{v.name}（{v.city}）</option>)}
               </select>
             </label>
-            <label className="field" style={{ flex: "1 1 120px" }}>
-              <span>卡面</span>
+            <label className="field" style={{ flex: "1 1 140px" }}>
+              <span>這場的節目單</span>
               <select value={s.design} onChange={(e) => setShow(s.id, { design: e.target.value })}>
-                {designs.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                {designs.map((d) => <option key={d.key} value={d.key}>{d.key === defaultDesign ? `${d.label}（所有場次）` : d.label}</option>)}
               </select>
             </label>
             <label className="field" style={{ flex: "0 1 120px" }}>
@@ -260,10 +284,23 @@ export function ProductionForm({ workTitles }: { workTitles: string[] }) {
             )}
           </div>
         ))}
-        <button type="button" className="link-btn" style={{ alignSelf: "flex-start", background: "transparent", font: "inherit", fontSize: 13 }}
-          onClick={() => setShows((xs) => [...xs, { ...xs[xs.length - 1], id: rowId++, startsAt: "" }])}>
-          ＋ 新增場次
-        </button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+          <button type="button" className="link-btn" style={{ background: "transparent", font: "inherit", fontSize: 13 }}
+            onClick={() => setShows((xs) => [...xs, { ...xs[xs.length - 1], id: rowId++, startsAt: "" }])}>
+            ＋ 新增場次
+          </button>
+          <label className="field" style={{ flex: "0 1 200px" }}>
+            <span className="small">一次排好週末四場（選週五）</span>
+            <input type="date" value={weekend} onChange={(e) => setWeekend(e.target.value)} />
+          </label>
+          <button type="button" className="link-btn" style={{ background: "transparent", font: "inherit", fontSize: 13 }} disabled={!weekend}
+            onClick={() => {
+              const venue = shows[0]?.venue ?? "";
+              setShows(weekendShows(weekend).map((startsAt) => ({ id: rowId++, startsAt, venue, design: defaultDesign, maxClaims: "" })));
+            }}>
+            套用：五 19:30・六 14:30・六 19:30・日 14:30
+          </button>
+        </div>
         <label className="inline-check" style={{ marginTop: 4 }}>
           <input type="checkbox" checked={testWindow} onChange={(e) => setTestWindow(e.target.checked)} />
           <span>

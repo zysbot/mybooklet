@@ -13,6 +13,7 @@ interface ShowProps {
   startsAt: string;
   startsAtLabel: string;
   color: string;
+  image: string | null;
 }
 
 interface Props {
@@ -129,6 +130,7 @@ export function ClaimFlow({ code, show, open, closedMessage, loggedIn, pseudonym
           companyName={show.companyName}
           startsAt={show.startsAt}
           color={show.color}
+          image={show.image}
           stubRight={<span style={{ padding: "3px 8px", border: "1px solid rgba(244,239,230,0.6)", borderRadius: 999 }}>待領取</span>}
         />
       </div>
@@ -234,6 +236,7 @@ function ClaimDone({ show, done }: { show: ShowProps; done: Done }) {
           companyName={show.companyName}
           startsAt={show.startsAt}
           color={show.color}
+          image={show.image}
           stubRight={<span style={{ padding: "3px 8px", border: "1px solid rgba(244,239,230,0.6)", borderRadius: 999 }}>已收藏</span>}
         />
       </div>

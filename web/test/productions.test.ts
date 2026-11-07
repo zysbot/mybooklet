@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Db } from "@/lib/db";
 import { createProduction, configureShowsOnChain, ProductionError, type ProductionInput } from "@/lib/productions";
-import { seedTestViewers, clearTestViewers, TEST_VIEWER_COUNT } from "@/lib/test-data";
-import { TEST_CATALOG, testClaimWindow } from "@/lib/test-catalog";
+import { seedTestViewers, clearTestViewers, syncTestCatalog, TEST_VIEWER_COUNT } from "@/lib/test-data";
+import { TEST_CATALOG, testClaimWindow, testShowTimes } from "@/lib/test-catalog";
+import { getKindred, setClaimHidden } from "@/lib/social";
+import { setFavorite, FavoriteError } from "@/lib/favorites";
+import { parseNames } from "@/lib/productions";
 import { getInsights } from "@/lib/insights";
 import { findOrCreateUser } from "@/lib/users";
 import { createTestDb } from "./helpers";
@@ -117,12 +120,58 @@ describe("測試觀眾", () => {
         {
           title: t.title, companyName: t.company, genre: t.genre, producerName: t.producer, intro: t.intro,
           designs: [{ key: "regular", label: "一般場", coverColor: t.coverColor }], defaultDesign: "regular",
-          shows: [{ startsAt: t.startsAt, venue: t.venue, maxClaims: 300, ...testClaimWindow(t.startsAt, NOW) }],
+          shows: testShowTimes(t).map((at) => ({ startsAt: at, venue: t.venue, maxClaims: 300, ...testClaimWindow(at, NOW) })),
         },
         SITE,
         { dedupe: true }
       );
     }
+  });
+
+  it("週末四場的節目，觀眾分散在不同場次", async () => {
+    await seedTestViewers(db, { now: NOW });
+    const r = await db.query<{ title: string; shows: string; per_user: string }>(
+      `SELECT p.title, count(DISTINCT c.show_id) AS shows, max(n) AS per_user
+         FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
+         JOIN (SELECT c2.user_id, s2.production_id, count(*) AS n FROM claims c2 JOIN shows s2 ON s2.id = c2.show_id GROUP BY 1, 2) k
+           ON k.user_id = c.user_id AND k.production_id = p.id
+        GROUP BY p.title`
+    );
+    for (const row of r.rows) {
+      const single = TEST_CATALOG.find((t) => t.title === row.title)!.single;
+      if (single) expect(Number(row.shows)).toBe(1);
+      else expect(Number(row.shows)).toBeGreaterThan(1);
+      expect(Number(row.per_user)).toBe(1); // 每人每檔只領一場
+    }
+  });
+
+  it("跟你足跡最像的五位：至少一起看過兩齣、依相似度排列、不含隱藏的節目單", async () => {
+    const me = await findOrCreateUser(db, { provider: "line", subject: "U-me" });
+    await seedTestViewers(db, { now: NOW, includeUserId: me.id });
+    const later = new Date("2027-06-01T00:00:00Z");
+    const k = await getKindred(db, me.id, 5, later);
+    expect(k.people).toHaveLength(5);
+    expect(k.total).toBeGreaterThanOrEqual(5);
+    for (let i = 1; i < k.people.length; i++) expect(k.people[i - 1].similarity).toBeGreaterThanOrEqual(k.people[i].similarity);
+    expect(k.people.every((p) => p.common >= 2)).toBe(true);
+    expect(k.people.some((p) => p.sameNights > 0)).toBe(true);
+
+    // 第一名把所有節目單都隱藏，就不再出現
+    const top = await db.query<{ id: string }>(`SELECT id FROM users WHERE public_id = $1`, [k.people[0].publicId]);
+    const theirs = await db.query<{ id: string }>(`SELECT id FROM claims WHERE user_id = $1`, [top.rows[0].id]);
+    for (const c of theirs.rows) await setClaimHidden(db, top.rows[0].id, c.id, true);
+    const after = await getKindred(db, me.id, 5, later);
+    expect(after.people.map((p) => p.publicId)).not.toContain(k.people[0].publicId);
+  });
+
+  it("前五喜歡：可以標到第 5 名，第 6 名不行", async () => {
+    const me = await findOrCreateUser(db, { provider: "line", subject: "U-me" });
+    await seedTestViewers(db, { now: NOW, includeUserId: me.id });
+    const mine = await db.query<{ id: string }>(`SELECT id FROM claims WHERE user_id = $1 ORDER BY id LIMIT 6`, [me.id]);
+    for (let i = 0; i < 5; i++) await setFavorite(db, me.id, mine.rows[i].id, i + 1);
+    await expect(setFavorite(db, me.id, mine.rows[5].id, 6)).rejects.toBeInstanceOf(FavoriteError);
+    const n = await db.query<{ n: string }>(`SELECT count(*) AS n FROM favorites WHERE user_id = $1`, [me.id]);
+    expect(Number(n.rows[0].n)).toBe(5);
   });
 
   it("50 位觀眾，每人至少兩檔、至少兩種類型，部分標記前三，一律公開收藏", async () => {
@@ -175,7 +224,7 @@ describe("測試觀眾", () => {
     await seedTestViewers(db, { now: NOW });
     const producer = await db.query<{ id: string }>(`SELECT id FROM organizers WHERE kind = 'producer'`);
     const ins = (await getInsights(db, producer.rows[0].id))!;
-    expect(ins.totals.shows).toBe(3);
+    expect(ins.totals.shows).toBe(12); // 夜行列車、港口女孩、退潮，各四場
     expect(ins.footprintAvailable).toBe(true);
     expect(ins.genres.length).toBeGreaterThan(0);
   });
@@ -186,5 +235,52 @@ describe("測試觀眾", () => {
     expect(await clearTestViewers(db)).toBe(TEST_VIEWER_COUNT);
     const left = await db.query<{ n: string }>(`SELECT count(*) AS n FROM claims`);
     expect(Number(left.rows[0].n)).toBe(10);
+  });
+});
+
+describe("測試節目的場次", () => {
+  it("週末四場排在演出日所在的週末；單一場次不變", () => {
+    expect(testShowTimes({ startsAt: "2026-11-14T19:30:00+08:00" })).toEqual([
+      "2026-11-13T19:30:00+08:00",
+      "2026-11-14T14:30:00+08:00",
+      "2026-11-14T19:30:00+08:00",
+      "2026-11-15T14:30:00+08:00",
+    ]);
+    // 週二的舊日期 → 那週的週末
+    expect(testShowTimes({ startsAt: "2026-06-02T19:30:00+08:00" })[0]).toBe("2026-06-05T19:30:00+08:00");
+    // 週日 → 同一個週末
+    expect(testShowTimes({ startsAt: "2026-09-13T19:30:00+08:00" })[3]).toBe("2026-09-13T14:30:00+08:00");
+    expect(testShowTimes({ startsAt: "2024-10-05T20:00:00+08:00", single: true })).toEqual(["2024-10-05T20:00:00+08:00"]);
+    expect(TEST_CATALOG.filter((t) => t.single).map((t) => t.title)).toEqual(["第三個房間", "島嶼合唱"]);
+    expect(TEST_CATALOG.filter((t) => t.festival)).toHaveLength(5);
+  });
+
+  it("舊的單場測試節目可以更新成週末四場，並補上藝術節與創作者", async () => {
+    const db = await createTestDb();
+    const t = TEST_CATALOG.find((x) => x.title === "鹽的聲音")!;
+    const old = await createProduction(
+      db,
+      {
+        title: t.title, companyName: t.company, genre: t.genre, intro: t.intro,
+        designs: [{ key: "regular", label: "一般場", coverColor: t.coverColor }], defaultDesign: "regular",
+        shows: [{ startsAt: t.startsAt, venue: t.venue, maxClaims: 300, ...testClaimWindow(t.startsAt, NOW) }],
+      },
+      SITE
+    );
+    const r = await syncTestCatalog(db, SITE, NOW);
+    expect(r).toEqual({ productions: 1, showsAdded: 3, showsMoved: 1 });
+    const shows = await db.query<{ id: string; starts_at: Date }>(`SELECT id, starts_at FROM shows WHERE production_id = $1 ORDER BY starts_at`, [old.productionId]);
+    expect(shows.rows.map((s) => new Date(s.starts_at).toISOString())).toEqual(testShowTimes(t).map((x) => new Date(x).toISOString()));
+    // 原本 9/13（週日）晚上那一場，移到同一天的下午場
+    expect(String(shows.rows[3].id)).toBe(old.shows[0].showId);
+    const p = await db.query<{ directors: string[] }>(`SELECT directors FROM productions WHERE id = $1`, [old.productionId]);
+    expect(p.rows[0].directors).toEqual(["陳映竹"]);
+    // 再執行一次不會重複
+    expect(await syncTestCatalog(db, SITE, NOW)).toEqual({ productions: 1, showsAdded: 0, showsMoved: 0 });
+  });
+
+  it("姓名用頓號、逗號分開", () => {
+    expect(parseNames("王小明、李小華, 陳大文，王小明")).toEqual(["王小明", "李小華", "陳大文"]);
+    expect(parseNames("  ")).toEqual([]);
   });
 });

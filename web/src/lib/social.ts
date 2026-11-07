@@ -109,6 +109,7 @@ export interface ProfileBooklet {
   /** 只到年月，例如「2026 年 3 月」 */
   month: string;
   coverColor: string;
+  coverImage: string | null;
   /** 你也收藏了這齣戲 */
   alsoSeen: boolean;
   /** 你們看的是同一場（同一晚） */
@@ -146,8 +147,8 @@ export async function getProfile(q: Queryable, viewerId: string, publicId: strin
 
   const cutoff = new Date(now.getTime() - PUBLIC_DELAY_MS);
   // 看自己的頁面時，顯示「別人會看到的樣子」：一樣排除隱藏的與未滿 4 小時的
-  const theirs = await q.query<{ show_id: string; production_id: string; title: string; company_name: string; genre: string | null; starts_at: Date; cover_color: string }>(
-    `SELECT c.show_id, s.production_id, p.title, p.company_name, p.genre, s.starts_at, d.cover_color
+  const theirs = await q.query<{ show_id: string; production_id: string; title: string; company_name: string; genre: string | null; starts_at: Date; cover_color: string; cover_image_url: string | null }>(
+    `SELECT c.show_id, s.production_id, p.title, p.company_name, p.genre, s.starts_at, d.cover_color, d.cover_image_url
        FROM claims c
        JOIN shows s ON s.id = c.show_id
        JOIN productions p ON p.id = s.production_id
@@ -180,6 +181,7 @@ export async function getProfile(q: Queryable, viewerId: string, publicId: strin
       genre: r.genre,
       month: taipeiMonth(new Date(r.starts_at)),
       coverColor: r.cover_color,
+      coverImage: r.cover_image_url,
       alsoSeen: !isSelf && myProductions.has(pid),
       sameNight,
       startsAt: new Date(r.starts_at).getTime(),
@@ -215,4 +217,59 @@ export async function setClaimHidden(q: Queryable, userId: string, claimId: stri
   if (!/^[0-9a-f-]{36}$/i.test(claimId)) return false;
   const r = await q.query(`UPDATE claims SET hidden = $3 WHERE id = $1 AND user_id = $2 RETURNING id`, [claimId, userId, hidden]);
   return r.rows.length > 0;
+}
+
+export interface Kindred {
+  publicId: string;
+  pseudonym: string;
+  /** 共同收藏的節目數 */
+  common: number;
+  /** 其中看同一場（同一晚）的次數 */
+  sameNights: number;
+  /** 0–1 */
+  similarity: number;
+}
+
+/** 至少一起看過幾齣，才算「足跡相近」 */
+export const KINDRED_MIN_COMMON = 2;
+
+/**
+ * 收藏冊下方「跟你足跡最像的人」：在所有公開收藏的觀眾裡，找出和你共同收藏最多的人。
+ * 規則和頭像列相同（PUBLIC_CLAIM）：只看對方公開、沒隱藏、演出已開始滿 4 小時的節目單。
+ * 至少一起看過 KINDRED_MIN_COMMON 齣才列入。total 是符合條件的總人數（不公開的觀眾只看得到這個數字）。
+ */
+export async function getKindred(q: Queryable, viewerId: string, limit = 5, now: Date = new Date()): Promise<{ people: Kindred[]; total: number }> {
+  const cutoff = new Date(now.getTime() - PUBLIC_DELAY_MS);
+  const r = await q.query<{ public_id: string; pseudonym: string; n_u: string; common: string; same_nights: string; n_v: string }>(
+    `WITH mine AS (
+       SELECT DISTINCT s.production_id FROM claims c JOIN shows s ON s.id = c.show_id WHERE c.user_id = $1
+     ), mine_shows AS (
+       SELECT DISTINCT show_id FROM claims WHERE user_id = $1
+     ), pub AS (
+       SELECT c.user_id, s.production_id, c.show_id
+         FROM claims c JOIN shows s ON s.id = c.show_id JOIN users u ON u.id = c.user_id
+        WHERE ${PUBLIC_CLAIM.replace("$NOW", "$2")} AND c.user_id <> $1
+     ), st AS (
+       SELECT user_id,
+              count(DISTINCT production_id) AS n_u,
+              count(DISTINCT production_id) FILTER (WHERE production_id IN (SELECT production_id FROM mine)) AS common,
+              count(DISTINCT show_id) FILTER (WHERE show_id IN (SELECT show_id FROM mine_shows)) AS same_nights
+         FROM pub GROUP BY user_id
+     )
+     SELECT u.public_id, u.pseudonym, st.n_u, st.common, st.same_nights, (SELECT count(*) FROM mine) AS n_v
+       FROM st JOIN users u ON u.id = st.user_id
+      WHERE st.common >= $3`,
+    [viewerId, cutoff, KINDRED_MIN_COMMON]
+  );
+  const all = r.rows
+    .map((x) => ({
+      publicId: x.public_id,
+      pseudonym: x.pseudonym,
+      common: Number(x.common),
+      sameNights: Number(x.same_nights),
+      similarity: jaccard(Number(x.common), Number(x.n_v), Number(x.n_u)),
+      k: Math.random(),
+    }))
+    .sort((a, b) => b.similarity - a.similarity || b.common - a.common || b.sameNights - a.sameNights || a.k - b.k);
+  return { people: all.slice(0, limit).map(({ k: _k, ...p }) => p), total: all.length };
 }

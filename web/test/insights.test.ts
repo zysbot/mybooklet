@@ -162,7 +162,7 @@ describe("主辦方統計與隱私", () => {
   });
 });
 
-describe("前三喜歡", () => {
+describe("前五喜歡", () => {
   let db: Db;
   let ctx: Awaited<ReturnType<typeof build>>;
   beforeEach(async () => {
@@ -193,10 +193,10 @@ describe("前三喜歡", () => {
     expect((await getFavorites(db, u)).length).toBe(1);
   });
 
-  it("不能標記別人的節目單，名次只能 1 到 3", async () => {
+  it("不能標記別人的節目單，名次只能 1 到 5", async () => {
     const [othersClaim] = await claimsOf(ctx.users[1]);
     await expect(setFavorite(db, ctx.users[0], othersClaim, 1)).rejects.toBeInstanceOf(FavoriteError);
     const [mine] = await claimsOf(ctx.users[0]);
-    await expect(setFavorite(db, ctx.users[0], mine, 4)).rejects.toThrow("名次");
+    await expect(setFavorite(db, ctx.users[0], mine, 6)).rejects.toThrow("名次");
   });
 });

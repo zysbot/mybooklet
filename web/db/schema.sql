@@ -318,3 +318,17 @@ CREATE TABLE IF NOT EXISTS attachments (
   CHECK (file_url IS NOT NULL OR link_url IS NOT NULL)
 );
 CREATE INDEX IF NOT EXISTS attachments_production ON attachments (production_id) WHERE removed_at IS NULL;
+
+-- ---------------------------------------------------------------
+-- 2026-11-07 晚：卡面圖片、創作者、前五喜歡
+-- ---------------------------------------------------------------
+
+-- 卡面圖片（designs.cover_image_url 早已存在，11/07 起由主辦方後台上傳使用）。
+
+-- 創作者：收藏冊「創作者」分類用。之後再加演員、舞台、燈光等職務。
+ALTER TABLE productions ADD COLUMN IF NOT EXISTS directors TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE productions ADD COLUMN IF NOT EXISTS playwrights TEXT[] NOT NULL DEFAULT '{}';
+
+-- 前三喜歡改為前五喜歡
+ALTER TABLE favorites DROP CONSTRAINT IF EXISTS favorites_rank_check;
+ALTER TABLE favorites ADD CONSTRAINT favorites_rank_check CHECK (rank BETWEEN 1 AND 5);

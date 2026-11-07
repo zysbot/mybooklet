@@ -53,6 +53,7 @@ export default async function ClaimPage({ params }: Params) {
           startsAt: show.startsAt.toISOString(),
           startsAtLabel: formatShowTime(show.startsAt),
           color: show.coverColor,
+          image: show.coverImage,
         }}
       />
     </main>

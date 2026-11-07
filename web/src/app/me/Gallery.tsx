@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ProgramCard } from "@/components/ProgramCard";
+import { ProgramCard, cardBackground } from "@/components/ProgramCard";
 import { formatDate, formatSerial } from "@/lib/format";
 
 export interface GalleryItem {
@@ -15,13 +15,26 @@ export interface GalleryItem {
   productionId: string;
   workTitle: string;
   festival: string | null;
+  directors: string[];
+  playwrights: string[];
   startsAt: string;
   serial: number;
   color: string;
+  image: string | null;
   favoriteRank: number | null;
 }
 
-type Mode = "time" | "genre" | "year" | "city" | "venue" | "company" | "work" | "festival";
+type Mode = "time" | "genre" | "year" | "city" | "venue" | "company" | "work" | "festival" | "creator";
+
+/** 創作者的職務；之後再加演員、舞台、燈光 */
+type Role = "directors" | "playwrights";
+const ROLES: { key: Role; label: string }[] = [
+  { key: "directors", label: "導演" },
+  { key: "playwrights", label: "編劇" },
+];
+
+/** 前五喜歡 */
+const FAVORITE_SLOTS = [1, 2, 3, 4, 5];
 
 const MODES: { key: Mode; label: string }[] = [
   { key: "time", label: "時間" },
@@ -32,6 +45,7 @@ const MODES: { key: Mode; label: string }[] = [
   { key: "company", label: "劇團" },
   { key: "work", label: "作品" },
   { key: "festival", label: "藝術節" },
+  { key: "creator", label: "創作者" },
 ];
 
 const NO_FESTIVAL = "不屬於藝術節";
@@ -57,11 +71,12 @@ function Card({ item }: { item: GalleryItem }) {
     <ProgramCard
       size="sm"
       href={`/booklet/${item.claimId}`}
-      ariaLabel={`《${item.title}》節目單，${formatDate(item.startsAt)}${item.favoriteRank ? `，前三喜歡第 ${item.favoriteRank} 名` : ""}`}
+      ariaLabel={`《${item.title}》節目單，${formatDate(item.startsAt)}${item.favoriteRank ? `，前五喜歡第 ${item.favoriteRank} 名` : ""}`}
       title={item.title}
       companyName={item.companyName}
       startsAt={item.startsAt}
       color={item.color}
+      image={item.image}
       kicker={item.genre ?? "PROGRAM"}
       stubRight={<span>No. {formatSerial(item.serial)}</span>}
     />
@@ -70,12 +85,26 @@ function Card({ item }: { item: GalleryItem }) {
 
 export function Gallery({ items }: { items: GalleryItem[] }) {
   const [mode, setMode] = useState<Mode>("time");
+  const [role, setRole] = useState<Role>("directors");
 
-  const top = [1, 2, 3].map((rank) => items.find((i) => i.favoriteRank === rank) ?? null);
+  const top = FAVORITE_SLOTS.map((rank) => items.find((i) => i.favoriteRank === rank) ?? null);
   const hasTop = top.some(Boolean);
 
   const groups = useMemo(() => {
     if (mode === "time") return [{ name: "", items }];
+    if (mode === "creator") {
+      // 一份節目單可能有好幾位導演，會出現在每一位底下；沒有資料的放最後
+      const label = ROLES.find((r) => r.key === role)!.label;
+      const none = `尚未登錄${label}的節目單`;
+      const byName = new Map<string, GalleryItem[]>();
+      for (const item of items) {
+        const names = item[role].length ? item[role] : [none];
+        for (const n of names) byName.set(n, [...(byName.get(n) ?? []), item]);
+      }
+      return [...byName.entries()]
+        .map(([name, list]) => ({ name, items: list }))
+        .sort((a, b) => Number(a.name === none) - Number(b.name === none) || b.items.length - a.items.length || a.name.localeCompare(b.name, "zh-Hant"));
+    }
     const map = new Map<string, GalleryItem[]>();
     for (const item of items) {
       const k = groupKey(item, mode);
@@ -95,13 +124,13 @@ export function Gallery({ items }: { items: GalleryItem[] }) {
     }
     if (mode === "festival") return list.sort((a, b) => Number(a.name === NO_FESTIVAL) - Number(b.name === NO_FESTIVAL) || byCount(a, b));
     return list.sort(byCount);
-  }, [items, mode]);
+  }, [items, mode, role]);
 
   return (
     <>
       <section className="stack" style={{ gap: 12 }} aria-labelledby="top3-title">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <h2 id="top3-title" className="group-title">我的前三喜歡</h2>
+          <h2 id="top3-title" className="group-title">我的前五喜歡</h2>
           {!hasTop && <span className="small muted">在節目單裡標記</span>}
         </div>
         <div className="top3">
@@ -109,7 +138,7 @@ export function Gallery({ items }: { items: GalleryItem[] }) {
             item ? (
               <Link key={i} href={`/booklet/${item.claimId}`} className="top3-slot" aria-label={`第 ${i + 1} 名：《${item.title}》`}>
                 <span className="top3-rank" aria-hidden="true">{i + 1}</span>
-                <span className="top3-card" style={{ background: item.color }}>
+                <span className="top3-card" style={cardBackground(item.color, item.image)}>
                   <span className="top3-title">{item.title}</span>
                 </span>
                 <span className="top3-meta">{formatDate(item.startsAt)}</span>
@@ -133,8 +162,18 @@ export function Gallery({ items }: { items: GalleryItem[] }) {
         ))}
       </div>
 
+      {mode === "creator" && (
+        <div className="pills subpills" role="group" aria-label="創作者的職務">
+          {ROLES.map((r) => (
+            <button key={r.key} type="button" className="pill" aria-pressed={r.key === role} onClick={() => setRole(r.key)}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {groups.map((g) => (
-        <section key={g.name || "all"} className="stack" style={{ gap: 12 }} aria-label={g.name || "全部節目單"}>
+        <section key={`${mode}-${g.name || "all"}`} className="stack" style={{ gap: 12 }} aria-label={g.name || "全部節目單"}>
           {g.name && (
             <h2 className="group-title">
               {g.name}
