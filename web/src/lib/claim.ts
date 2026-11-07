@@ -1,6 +1,7 @@
 import type { Db } from "./db";
+import { EFFECTIVE_PLAN_SQL, FREE_CLAIM_LIMIT } from "./plans";
 
-export type ClaimErrorCode = "CODE_NOT_FOUND" | "CODE_NOT_ACTIVE" | "SOLD_OUT";
+export type ClaimErrorCode = "CODE_NOT_FOUND" | "CODE_NOT_ACTIVE" | "SOLD_OUT" | "FREE_LIMIT";
 
 export class ClaimError extends Error {
   constructor(public code: ClaimErrorCode) {
@@ -12,6 +13,8 @@ export const CLAIM_ERROR_MESSAGES: Record<ClaimErrorCode, string> = {
   CODE_NOT_FOUND: "找不到這個 QR code，請向現場工作人員確認。",
   CODE_NOT_ACTIVE: "這個 QR code 目前不在開放領取的時段。",
   SOLD_OUT: "這個場次的節目單已全數領取完畢。",
+  // 免費方案的份數用完：對觀眾只說發完了，不提方案
+  FREE_LIMIT: "這個節目的節目單已全數領取完畢。",
 };
 
 export interface ClaimResult {
@@ -64,6 +67,23 @@ export async function claimShow(db: Db, userId: string, code: string, now: Date 
         claimCode.show_id,
       ]);
       if (Number(count.rows[0].n) >= claimCode.max_claims) throw new ClaimError("SOLD_OUT");
+    }
+
+    // 免費方案：演出團隊所有場次合計最多 FREE_CLAIM_LIMIT 份。鎖住組織這一列，跨場次同時領取也不會超發。
+    const org = await q.query<{ id: string; plan: string }>(
+      `SELECT o.id, ${EFFECTIVE_PLAN_SQL} AS plan
+         FROM organizers o JOIN productions p ON p.organizer_id = o.id JOIN shows s ON s.production_id = p.id
+        WHERE s.id = $1
+        FOR UPDATE OF o`,
+      [claimCode.show_id]
+    );
+    if (org.rows[0]?.plan === "free") {
+      const used = await q.query<{ n: string }>(
+        `SELECT count(*) AS n FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
+          WHERE p.organizer_id = $1`,
+        [org.rows[0].id]
+      );
+      if (Number(used.rows[0].n) >= FREE_CLAIM_LIMIT) throw new ClaimError("FREE_LIMIT");
     }
 
     const serialRow = await q.query<{ serial: number }>(

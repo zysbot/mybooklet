@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Db } from "@/lib/db";
 import { findOrCreateUser } from "@/lib/users";
-import { getInsights, mask, joinByInvite, isMember, listMemberships, MIN_GROUP } from "@/lib/insights";
+import { getInsights, getFreeStats, mask, MIN_GROUP } from "@/lib/insights";
 import { setFavorite, getFavorites, removeFavorite, FavoriteError } from "@/lib/favorites";
 import { createTestDb } from "./helpers";
 
@@ -153,14 +153,12 @@ describe("主辦方統計與隱私", () => {
     expect(mask(12, 5).pct).toBeNull(); // 總數太少不算比例
   });
 
-  it("用邀請碼加入後台", async () => {
-    await db.query(`UPDATE organizers SET invite_token = 'invite-token-for-company-a' WHERE id = $1`, [ctx.companyA]);
-    const staff = ctx.users[19];
-    expect(await isMember(db, ctx.companyA, staff)).toBe(false);
-    expect(await joinByInvite(db, "wrong-token-xxxxxxxxxxxxx", staff)).toBeNull();
-    expect((await joinByInvite(db, "invite-token-for-company-a", staff))!.name).toBe("劇團甲");
-    expect(await isMember(db, ctx.companyA, staff)).toBe(true);
-    expect((await listMemberships(db, staff)).map((o) => o.name)).toEqual(["劇團甲"]);
+  it("免費方案只有每場份數，沒有任何觀眾分析", async () => {
+    const r = (await getFreeStats(db, ctx.companyA))!;
+    expect(r.totals).toEqual({ shows: 2, claims: 17, minted: 0 });
+    expect(r.shows.map((x) => x.claims)).toEqual([5, 12]);
+    const json = JSON.stringify(r);
+    for (const k of ["audience", "genre", "footprint", "favorites", "U-secret", "@example.com"]) expect(json).not.toContain(k);
   });
 });
 

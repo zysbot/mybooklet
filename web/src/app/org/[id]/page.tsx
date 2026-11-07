@@ -2,9 +2,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
-import { currentUserId } from "@/lib/session";
 import { isAdmin } from "@/lib/admin";
-import { getInsights, isMember, ORG_KIND_LABEL, MIN_GROUP, type Masked } from "@/lib/insights";
+import { currentOrgAccount } from "@/lib/org-session";
+import { isOrgMember, logAccess } from "@/lib/org-accounts";
+import { getPlan, PLAN_LABEL } from "@/lib/plans";
+import { getInsights, ORG_KIND_LABEL, MIN_GROUP, type Masked } from "@/lib/insights";
+import { FreeView } from "./FreeView";
 import { formatShowTime } from "@/lib/format";
 import "../../admin/admin.css";
 import "../org.css";
@@ -32,9 +35,24 @@ function Bar({ label, m }: { label: string; m: Masked }) {
 export default async function OrgDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = getDb();
-  const [userId, admin] = await Promise.all([currentUserId(), isAdmin()]);
-  if (!userId && !admin) redirect("/org");
-  if (!admin && !(userId && (await isMember(db, id, userId)))) notFound();
+  const [account, admin] = await Promise.all([currentOrgAccount(), isAdmin()]);
+  if (!account && !admin) redirect("/org");
+  if (!admin && !(account && (await isOrgMember(db, id, account.id)))) notFound();
+
+  const plan = await getPlan(db, id);
+  if (!plan) notFound();
+  // 工作人員每次查看都記錄；營運方查看不記
+  if (account && !admin) await logAccess(db, id, account.email, "view");
+
+  const adminNote = admin ? (
+    <p className="privacy-note">
+      營運方檢視：這個組織目前是「{PLAN_LABEL[plan.effective]}」
+      {plan.plan !== plan.effective ? `（設定為${PLAN_LABEL[plan.plan]}，已於 ${plan.until} 到期）` : plan.until ? `，合作到 ${plan.until}` : ""}
+      ，下面是工作人員看到的畫面。<Link href={`/admin/organizers/${id}`}>管理這個組織</Link>
+    </p>
+  ) : null;
+
+  if (plan.effective === "free") return <FreeView organizerId={id} adminNote={adminNote} />;
 
   const r = await getInsights(db, id);
   if (!r) notFound();
@@ -49,6 +67,11 @@ export default async function OrgDashboard({ params }: { params: Promise<{ id: s
         </div>
         <Link href="/org" className="link-btn">我的後台</Link>
       </div>
+
+      {adminNote}
+      {plan.until && (
+        <p className="small muted" style={{ margin: 0 }}>合作方案：{PLAN_LABEL[plan.effective]}，到 {plan.until} 為止。</p>
+      )}
 
       <p className="privacy-note">
         這裡只提供統計，不會顯示任何觀眾的名字、LINE、Email 或錢包地址。人數少於 {MIN_GROUP} 人的分群只顯示「少於 {MIN_GROUP} 人」，避免推測出個別觀眾。

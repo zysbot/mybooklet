@@ -19,7 +19,9 @@ export async function POST(req: Request) {
     result = await claimShow(db, userId, code);
   } catch (err) {
     if (err instanceof ClaimError) {
-      return NextResponse.json({ error: CLAIM_ERROR_MESSAGES[err.code], code: err.code }, { status: 409 });
+      // 免費方案用完對外一律顯示「已發完」，不透露主辦方的方案
+      const publicCode = err.code === "FREE_LIMIT" ? "SOLD_OUT" : err.code;
+      return NextResponse.json({ error: CLAIM_ERROR_MESSAGES[err.code], code: publicCode }, { status: 409 });
     }
     throw err;
   }

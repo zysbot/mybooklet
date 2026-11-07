@@ -193,39 +193,56 @@ export async function getInsights(q: Queryable, organizerId: string): Promise<In
 }
 
 // ---------------------------------------------------------------
-// 後台成員
+// 免費方案：只看每場的份數，沒有觀眾分析
 // ---------------------------------------------------------------
 
-export async function listMemberships(q: Queryable, userId: string): Promise<Organizer[]> {
-  const r = await q.query<{ id: string; name: string; kind: OrgKind }>(
-    `SELECT o.id, o.name, o.kind FROM organizer_members m JOIN organizers o ON o.id = m.organizer_id
-      WHERE m.user_id = $1 ORDER BY o.name`,
-    [userId]
-  );
-  return r.rows.map((o) => ({ id: String(o.id), name: o.name, kind: o.kind }));
+export interface FreeShowStat {
+  showId: string;
+  title: string;
+  startsAt: Date;
+  venue: string;
+  /** 上架時設定的領取上限；沒設為 null */
+  capacity: number | null;
+  claims: number;
+  /** 已寫入區塊鏈的份數 */
+  minted: number;
 }
 
-export async function isMember(q: Queryable, organizerId: string, userId: string): Promise<boolean> {
-  const r = await q.query(`SELECT 1 FROM organizer_members WHERE organizer_id = $1 AND user_id = $2`, [organizerId, userId]);
-  return r.rows.length > 0;
+export interface FreeStats {
+  organizer: Organizer;
+  shows: FreeShowStat[];
+  totals: { shows: number; claims: number; minted: number };
 }
 
-export async function findByInvite(q: Queryable, token: string): Promise<Organizer | null> {
-  if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
-  const r = await q.query<{ id: string; name: string; kind: OrgKind }>(
-    `SELECT id, name, kind FROM organizers WHERE invite_token = $1`,
-    [token]
+export async function getFreeStats(q: Queryable, organizerId: string): Promise<FreeStats | null> {
+  const organizer = await getOrganizer(q, organizerId);
+  if (!organizer) return null;
+  const r = await q.query<{ id: string; title: string; starts_at: Date; venue: string; capacity: number | null; claims: string; minted: string }>(
+    `SELECT s.id, p.title, s.starts_at, s.venue,
+            (SELECT max_claims FROM claim_codes cc WHERE cc.show_id = s.id ORDER BY cc.id LIMIT 1) AS capacity,
+            (SELECT count(*) FROM claims c WHERE c.show_id = s.id) AS claims,
+            (SELECT count(*) FROM claims c WHERE c.show_id = s.id AND c.chain_status = 'minted') AS minted
+       FROM shows s JOIN productions p ON p.id = s.production_id
+      WHERE ${scopeCondition(organizer.kind)}
+      ORDER BY s.starts_at DESC`,
+    [organizer.id]
   );
-  const o = r.rows[0];
-  return o ? { id: String(o.id), name: o.name, kind: o.kind } : null;
-}
-
-export async function joinByInvite(q: Queryable, token: string, userId: string): Promise<Organizer | null> {
-  const org = await findByInvite(q, token);
-  if (!org) return null;
-  await q.query(
-    `INSERT INTO organizer_members (organizer_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-    [org.id, userId]
-  );
-  return org;
+  const shows = r.rows.map((x) => ({
+    showId: String(x.id),
+    title: x.title,
+    startsAt: new Date(x.starts_at),
+    venue: x.venue,
+    capacity: x.capacity === null ? null : Number(x.capacity),
+    claims: Number(x.claims),
+    minted: Number(x.minted),
+  }));
+  return {
+    organizer,
+    shows,
+    totals: {
+      shows: shows.length,
+      claims: shows.reduce((n, s) => n + s.claims, 0),
+      minted: shows.reduce((n, s) => n + s.minted, 0),
+    },
+  };
 }

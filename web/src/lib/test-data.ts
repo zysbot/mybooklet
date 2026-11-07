@@ -79,6 +79,16 @@ export async function seedTestViewers(db: Db, opts: { includeUserId?: string; no
   const report: SeedReport = { viewers: 0, shows: shows.length, claims: 0, skipped: 0, favorites: 0, includedUserClaims: 0 };
   if (shows.length === 0) return report;
 
+  // 測試節目的主辦方一律設為基本合作（不設到期日），才看得到完整統計，也不受免費 50 份上限影響
+  await db.query(
+    `UPDATE organizers SET plan = 'basic', plan_until = NULL
+      WHERE plan = 'free' AND id IN (
+        SELECT organizer_id FROM productions WHERE title = ANY($1::text[])
+        UNION SELECT producer_id FROM productions WHERE title = ANY($1::text[]) AND producer_id IS NOT NULL
+        UNION SELECT s.venue_id FROM shows s JOIN productions p ON p.id = s.production_id WHERE p.title = ANY($1::text[]) AND s.venue_id IS NOT NULL)`,
+    [TEST_CATALOG.map((t) => t.title)]
+  );
+
   const reach = new Map(TEST_CATALOG.map((t) => [t.title, t.reach]));
   const r = rng(20261106);
 
@@ -142,7 +152,6 @@ export async function clearTestViewers(db: Db): Promise<number> {
     if (ids.length === 0) return 0;
     await q.query(`DELETE FROM favorites WHERE user_id = ANY($1::bigint[])`, [ids]);
     await q.query(`DELETE FROM claims WHERE user_id = ANY($1::bigint[])`, [ids]);
-    await q.query(`DELETE FROM organizer_members WHERE user_id = ANY($1::bigint[])`, [ids]);
     await q.query(`DELETE FROM users WHERE id = ANY($1::bigint[])`, [ids]);
     return ids.length;
   });

@@ -5,10 +5,10 @@ import { isAdmin } from "@/lib/admin";
 import { getDb } from "@/lib/db";
 import { formatDateTime, formatShowTime } from "@/lib/format";
 import { LogoutAdmin } from "./LogoutAdmin";
-import { InviteButton } from "./InviteButton";
 import { ConfigureButton } from "./ConfigureButton";
 import { QrButton } from "./QrButton";
 import { ORG_KIND_LABEL, type OrgKind } from "@/lib/insights";
+import { EFFECTIVE_PLAN_SQL, PLAN_LABEL, type Plan } from "@/lib/plans";
 import "./admin.css";
 
 export const dynamic = "force-dynamic";
@@ -35,9 +35,9 @@ export default async function AdminHome() {
          JOIN designs d ON d.id = COALESCE(s.design_id, p.default_design_id)
         ORDER BY s.starts_at`
     ),
-    db.query<{ id: string; name: string; kind: OrgKind; members: string; has_invite: boolean }>(
-      `SELECT o.id, o.name, o.kind, (o.invite_token IS NOT NULL) AS has_invite,
-              (SELECT count(*) FROM organizer_members m WHERE m.organizer_id = o.id) AS members
+    db.query<{ id: string; name: string; kind: OrgKind; members: string; plan: Plan; effective: Plan; until: string | null }>(
+      `SELECT o.id, o.name, o.kind, o.plan, ${EFFECTIVE_PLAN_SQL} AS effective, to_char(o.plan_until, 'YYYY-MM-DD') AS until,
+              (SELECT count(*) FROM org_account_members m WHERE m.organizer_id = o.id) AS members
          FROM organizers o ORDER BY o.kind, o.name`
     ),
   ]);
@@ -60,23 +60,27 @@ export default async function AdminHome() {
         <section className="panel" aria-labelledby="orgs-title">
           <div className="panel-head">
             <h2 id="orgs-title">主辦方後台</h2>
-            <span className="small muted">把邀請連結交給劇團、製作方或場館的工作人員，他們登入後就能看到自己的統計</span>
+            <span className="small muted">在「管理」設定合作方案、加入工作人員的 Email；他們用 Email 驗證碼登入 /org</span>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>名稱</th><th>類型</th><th>成員</th><th aria-label="操作" /></tr>
+                <tr><th>名稱</th><th>類型</th><th>方案</th><th>工作人員</th><th aria-label="操作" /></tr>
               </thead>
               <tbody>
                 {orgs.rows.map((o) => (
                   <tr key={o.id}>
                     <td>{o.name}</td>
                     <td className="muted">{ORG_KIND_LABEL[o.kind]}</td>
+                    <td>
+                      {PLAN_LABEL[o.effective]}
+                      {o.plan !== o.effective ? <span className="small muted">（已到期）</span> : o.until ? <span className="small muted">（到 {o.until}）</span> : null}
+                    </td>
                     <td>{Number(o.members)}</td>
                     <td style={{ textAlign: "right" }}>
                       <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                         <Link href={`/org/${o.id}`} className="link-btn">看後台</Link>
-                        <InviteButton organizerId={String(o.id)} hasInvite={o.has_invite} />
+                        <Link href={`/admin/organizers/${o.id}`} className="link-btn">管理</Link>
                       </span>
                     </td>
                   </tr>

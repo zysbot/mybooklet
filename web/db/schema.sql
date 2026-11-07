@@ -152,20 +152,68 @@ DO $$ BEGIN
   ALTER TABLE organizers ADD CONSTRAINT organizers_kind_check CHECK (kind IN ('company', 'producer', 'venue'));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
--- 邀請連結：營運方產生後交給組織的工作人員，用來加入後台
-ALTER TABLE organizers ADD COLUMN IF NOT EXISTS invite_token TEXT UNIQUE;
+-- 舊的邀請連結已取消（11/07）：改由營運方在後台直接加入工作帳號
+ALTER TABLE organizers DROP COLUMN IF EXISTS invite_token;
+
+-- 合作方案：free（免費，合計最多 50 份）／basic（基本合作，看得到統計）。
+-- plan_until 是合作到期日（台北日期，當天仍有效）；NULL 表示不設到期日。到期後自動視為 free。
+-- 11/07 加入這個欄位時，既有的組織都是測試資料，一律設為 basic、不設到期日。
+ALTER TABLE organizers ADD COLUMN IF NOT EXISTS plan TEXT;
+UPDATE organizers SET plan = 'basic' WHERE plan IS NULL;
+ALTER TABLE organizers ALTER COLUMN plan SET DEFAULT 'free';
+ALTER TABLE organizers ALTER COLUMN plan SET NOT NULL;
+DO $$ BEGIN
+  ALTER TABLE organizers ADD CONSTRAINT organizers_plan_check CHECK (plan IN ('free', 'basic'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+ALTER TABLE organizers ADD COLUMN IF NOT EXISTS plan_until DATE;
 
 -- 節目的製作方（可與演出團隊不同）；場次的場館組織（venue 欄位仍保留顯示用名稱）
 ALTER TABLE productions ADD COLUMN IF NOT EXISTS producer_id BIGINT REFERENCES organizers(id);
 ALTER TABLE shows ADD COLUMN IF NOT EXISTS venue_id BIGINT REFERENCES organizers(id);
 
--- 組織的後台成員（用 LINE 或 Google 登入的帳號）
-CREATE TABLE IF NOT EXISTS organizer_members (
-  organizer_id  BIGINT NOT NULL REFERENCES organizers(id),
-  user_id       BIGINT NOT NULL REFERENCES users(id),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (organizer_id, user_id)
+-- 舊做法：用觀眾帳號加入主辦方後台（11/07 取消，觀眾身分與工作身分分開）
+DROP TABLE IF EXISTS organizer_members;
+
+-- 主辦方的工作帳號：與觀眾帳號完全分開，用 Email 驗證碼登入
+CREATE TABLE IF NOT EXISTS org_accounts (
+  id             BIGSERIAL PRIMARY KEY,
+  email          TEXT NOT NULL UNIQUE CHECK (email = lower(email)),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_login_at  TIMESTAMPTZ
 );
+
+-- 工作帳號屬於哪些組織（由營運方加入、移除）
+CREATE TABLE IF NOT EXISTS org_account_members (
+  organizer_id  BIGINT NOT NULL REFERENCES organizers(id),
+  account_id    BIGINT NOT NULL REFERENCES org_accounts(id),
+  added_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (organizer_id, account_id)
+);
+
+-- Email 驗證碼：只存雜湊；10 分鐘有效、最多試 5 次、用過即失效
+CREATE TABLE IF NOT EXISTS login_codes (
+  id          BIGSERIAL PRIMARY KEY,
+  purpose     TEXT NOT NULL,
+  email       TEXT NOT NULL,
+  code_hash   TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  attempts    INT NOT NULL DEFAULT 0,
+  used_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS login_codes_email_idx ON login_codes (purpose, email, created_at DESC);
+
+-- 主辦方後台的存取紀錄：誰在什麼時候登入、查看、被加入或移除（存 Email 文字，帳號移除後紀錄仍在）
+CREATE TABLE IF NOT EXISTS org_access_log (
+  id            BIGSERIAL PRIMARY KEY,
+  organizer_id  BIGINT REFERENCES organizers(id),
+  actor         TEXT NOT NULL,
+  action        TEXT NOT NULL,
+  detail        TEXT,
+  at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS org_access_log_org_idx ON org_access_log (organizer_id, at DESC);
 
 -- 觀眾的前三喜歡：每個名次一份，同一份節目單只能佔一個名次
 CREATE TABLE IF NOT EXISTS favorites (
