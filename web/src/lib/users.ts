@@ -16,6 +16,11 @@ export interface User {
   social_public: boolean;
   /** 個人頁網址用的隨機代碼 */
   public_id: string;
+  /** 同意使用條款與隱私權政策的時間；NULL 表示還沒看過首次領取告知 */
+  terms_accepted_at: Date | null;
+  terms_version: string | null;
+  /** 勾選「我已滿 13 歲」的時間 */
+  age_confirmed_at: Date | null;
 }
 
 /** 登入身分：只取帳號編號與 Email（Email 只用來寄通知），不取名稱與大頭貼 */

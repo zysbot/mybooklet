@@ -261,3 +261,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_public_id ON users (public_id);
 
 -- 觀眾可以隱藏單一份：不出現在自己的個人頁與別人的頭像列
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ---------------------------------------------------------------
+-- 2026-11-07 首次領取告知
+-- ---------------------------------------------------------------
+
+-- 觀眾同意使用條款與隱私權政策的時間與版本；勾選「我已滿 13 歲」的時間。
+-- 舊帳號為 NULL，下次領取時會先看到告知畫面。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS age_confirmed_at TIMESTAMPTZ;

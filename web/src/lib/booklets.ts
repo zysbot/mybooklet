@@ -176,3 +176,46 @@ export async function getBooklet(q: Queryable, claimId: string, userId: string):
     hidden: Boolean(row.hidden),
   };
 }
+
+export interface HomeProduction {
+  productionId: string;
+  title: string;
+  companyName: string;
+  genre: string | null;
+  venue: string;
+  /** 即將演出：最近一場；已演出：最後一場 */
+  startsAt: Date;
+  upcoming: boolean;
+  /** 一律用節目的預設卡面（特殊卡面不公開） */
+  coverColor: string;
+}
+
+/** 首頁「這些演出有吾冊節目單」：先列即將演出（由近到遠），再補最近演完的，最多 limit 檔 */
+export async function listHomeProductions(q: Queryable, now: Date = new Date(), limit = 8): Promise<HomeProduction[]> {
+  const r = await q.query<{ id: string; title: string; company_name: string; genre: string | null; cover_color: string; next_at: Date | null; next_venue: string | null; last_at: Date | null; last_venue: string | null }>(
+    `SELECT p.id, p.title, p.company_name, p.genre, d.cover_color,
+            nx.starts_at AS next_at, nx.venue AS next_venue, ls.starts_at AS last_at, ls.venue AS last_venue
+       FROM productions p
+       JOIN designs d ON d.id = p.default_design_id
+       LEFT JOIN LATERAL (SELECT starts_at, venue FROM shows WHERE production_id = p.id AND starts_at >= $1 ORDER BY starts_at LIMIT 1) nx ON TRUE
+       LEFT JOIN LATERAL (SELECT starts_at, venue FROM shows WHERE production_id = p.id AND starts_at < $1 ORDER BY starts_at DESC LIMIT 1) ls ON TRUE
+      WHERE nx.starts_at IS NOT NULL OR ls.starts_at IS NOT NULL`,
+    [now]
+  );
+  const rows = r.rows.map((x) => {
+    const upcoming = x.next_at !== null;
+    return {
+      productionId: String(x.id),
+      title: x.title,
+      companyName: x.company_name,
+      genre: x.genre,
+      venue: (upcoming ? x.next_venue : x.last_venue) ?? "",
+      startsAt: new Date((upcoming ? x.next_at : x.last_at)!),
+      upcoming,
+      coverColor: x.cover_color,
+    };
+  });
+  const up = rows.filter((x) => x.upcoming).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+  const past = rows.filter((x) => !x.upcoming).sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
+  return [...up, ...past].slice(0, limit);
+}

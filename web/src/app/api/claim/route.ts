@@ -5,15 +5,25 @@ import { claimShow, ClaimError, CLAIM_ERROR_MESSAGES } from "@/lib/claim";
 import { getShow } from "@/lib/booklets";
 import { getUser } from "@/lib/users";
 import { notifyClaimed } from "@/lib/notify";
+import { needsConsent, parseConsent, recordConsent } from "@/lib/consent";
 
 export async function POST(req: Request) {
   const userId = await currentUserId();
   if (!userId) return NextResponse.json({ error: "請先登入" }, { status: 401 });
 
-  const { code } = (await req.json().catch(() => ({}))) as { code?: string };
+  const { code, consent } = (await req.json().catch(() => ({}))) as { code?: string; consent?: unknown };
   if (!code) return NextResponse.json({ error: "缺少領取碼" }, { status: 400 });
 
   const db = getDb();
+
+  // 首次領取告知：還沒同意過的觀眾，要先勾選「我已滿 13 歲」並同意條款
+  if (needsConsent(await getUser(db, userId))) {
+    const c = parseConsent(consent);
+    if (!c) {
+      return NextResponse.json({ error: "請先閱讀並勾選「我已滿 13 歲」", code: "CONSENT_REQUIRED" }, { status: 428 });
+    }
+    await recordConsent(db, userId, c);
+  }
   let result;
   try {
     result = await claimShow(db, userId, code);

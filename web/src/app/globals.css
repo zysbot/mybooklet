@@ -221,3 +221,24 @@ a { color: inherit; }
 .mark { display: inline-block; margin-left: 6px; font-size: 11px; padding: 1px 7px; border-radius: 999px; vertical-align: 2px; font-family: var(--sans, inherit); font-weight: 500; }
 .mark-night { background: var(--accent); color: #fff; }
 .mark-seen { background: var(--paper-deep); color: var(--ink); }
+
+/* 法務頁 */
+.legal { gap: 16px; }
+.legal h2 { margin: 20px 0 0; font-family: var(--serif); font-weight: 700; font-size: 20px; }
+.legal h3 { margin: 12px 0 0; font-size: 16px; }
+.legal p, .legal li { font-size: 15px; line-height: 1.85; margin: 0; }
+.legal ul, .legal ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 4px; }
+.legal li > ul, .legal li > ol { margin-top: 4px; }
+.legal .table-wrap { overflow-x: auto; }
+.legal table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.legal th, .legal td { border-bottom: 1px solid var(--line); padding: 8px 10px 8px 0; text-align: left; vertical-align: top; line-height: 1.6; }
+.legal th { font-weight: 700; white-space: nowrap; }
+.legal code { font-size: 13px; }
+.legal-draft { margin: 0; padding: 10px 14px; border-radius: 10px; background: var(--paper-deep); font-size: 14px; line-height: 1.6; }
+.legal-nav { display: flex; flex-wrap: wrap; gap: 8px 18px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; }
+
+/* 首次領取告知 */
+.consent { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 14px; background: #fffdf8; border: 1px solid var(--line); }
+.consent h2 { margin: 0; font-family: var(--serif); font-size: 17px; }
+.consent ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.consent a { color: inherit; text-decoration: underline; margin: 0 2px; }

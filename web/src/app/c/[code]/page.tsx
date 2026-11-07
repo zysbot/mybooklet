@@ -7,6 +7,7 @@ import { getUser } from "@/lib/users";
 import { formatShowTime, formatDateTime } from "@/lib/format";
 import { Brand } from "@/components/Brand";
 import { ClaimFlow } from "./ClaimFlow";
+import { needsConsent } from "@/lib/consent";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function ClaimPage({ params }: Params) {
         closedMessage={closedMessage}
         loggedIn={!!user}
         pseudonym={user?.pseudonym ?? null}
+        needsConsent={needsConsent(user)}
         show={{
           title: show.title,
           companyName: show.companyName,
