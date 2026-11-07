@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ProgramCard } from "@/components/ProgramCard";
 import { LoginButtons, closeLiffWindow } from "@/components/LoginButtons";
 import { getLiff } from "@/lib/liff-client";
-import { formatSerial } from "@/lib/format";
 
 interface ShowProps {
   title: string;
@@ -26,7 +25,7 @@ interface Props {
   pseudonym: string | null;
 }
 
-type Done = { claimId: string; serial: number; alreadyClaimed: boolean };
+type Done = { claimId: string; alreadyClaimed: boolean };
 
 export function ClaimFlow({ code, show, open, closedMessage, loggedIn, pseudonym }: Props) {
   const [done, setDone] = useState<Done | null>(null);
@@ -130,14 +129,14 @@ function ClaimDone({ show, done }: { show: ShowProps; done: Done }) {
           companyName={show.companyName}
           startsAt={show.startsAt}
           color={show.color}
-          stubRight={<span style={{ fontFamily: "var(--serif)", fontSize: 13 }}>No. {formatSerial(done.serial)}</span>}
+          stubRight={<span style={{ padding: "3px 8px", border: "1px solid rgba(244,239,230,0.6)", borderRadius: 999 }}>已收藏</span>}
         />
       </div>
 
       <div className="stack center" style={{ gap: 8 }}>
         <h1 className="title">已收進你的收藏冊</h1>
         <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-          你是第 {done.serial} 位領取《{show.title}》節目單的觀眾
+          《{show.title}》的節目單，散場後也能隨時重讀
         </p>
       </div>
 

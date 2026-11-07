@@ -8,6 +8,7 @@ import type { Queryable } from "./db";
  * 2. 小群體隱藏：任何觀眾分群 1 到 9 人只顯示「少於 10」（0 照實顯示），避免從數字反推出是誰。
  *    觀眾總數不到 10 人時，整個足跡區塊不顯示。
  * 3. 不點名其他劇團或製作方：足跡只呈現類型與場館（公開場所）。
+ * 4. 足跡裡的類型與場館，1 到 9 人的整列不列出（連名稱都不出現）。
  */
 export const MIN_GROUP = 10;
 
@@ -175,7 +176,12 @@ export async function getInsights(q: Queryable, organizerId: string): Promise<In
         }
       : { firstTime: mask(0), returning: mask(0) },
     depth: available ? depthOrder.map(([k, label]) => ({ label, count: mask(depthMap.get(k) ?? 0, audienceSize) })) : [],
-    genres: available ? genres.rows.map((r) => ({ genre: r.genre, count: mask(Number(r.n), audienceSize) })) : [],
+    genres: available
+      ? genres.rows
+          .map((r) => ({ genre: r.genre, count: mask(Number(r.n), audienceSize) }))
+          // 和場館一樣：人數太少的類型整列不列出（冷門類型的名稱本身就可能指向特定的人）
+          .filter((g) => !g.count.hidden)
+      : [],
     venues: available
       ? venues.rows
           .map((r) => ({ venue: r.venue, count: mask(Number(r.n), audienceSize) }))

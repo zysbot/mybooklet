@@ -5,6 +5,7 @@ import { GENRES, VENUES, COVER_COLORS } from "@/lib/catalog";
 import { networkLabel } from "@/lib/network";
 import { testClaimWindow } from "@/lib/test-catalog";
 import { PdfUploader } from "../../designs/[id]/PdfUploader";
+import { QrButton } from "../../QrButton";
 
 interface DesignRow {
   key: string;
@@ -109,7 +110,7 @@ export function ProductionForm() {
                       <td>{s.designLabel}</td>
                       <td className={ok ? "status-ok" : "status-none"}>{ok ? "已寫入" : "失敗"}</td>
                       <td><a href={`/c/${s.code}`} target="_blank" rel="noreferrer">/c/{s.code}</a></td>
-                      <td><a className="link-btn" href={`/api/admin/shows/${s.showId}/qr`}>下載 QR</a></td>
+                      <td><QrButton showId={s.showId} caption={`${title}・${s.venue}`} /></td>
                     </tr>
                   );
                 })}

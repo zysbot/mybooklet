@@ -94,12 +94,12 @@ describe("主辦方統計與隱私", () => {
     expect(r.composition.firstTime).toEqual({ n: null, hidden: true, pct: null }); // 2 人
   });
 
-  it("足跡：觀眾在其他地方看過的類型，達到 10 人才顯示數字與比例", async () => {
+  it("足跡：觀眾在其他地方看過的類型，達到 10 人才列出", async () => {
     const r = (await getInsights(db, ctx.companyA))!;
     const dance = r.genres.find((g) => g.genre === "舞蹈")!;
     expect(dance.count).toEqual({ n: 10, hidden: false, pct: 83 });
-    const music = r.genres.find((g) => g.genre === "音樂")!;
-    expect(music.count.hidden).toBe(true); // 3 人
+    expect(r.genres.find((g) => g.genre === "音樂")).toBeUndefined(); // 3 人：整列不列出
+    expect(r.genres.every((g) => !g.count.hidden)).toBe(true);
   });
 
   it("足跡：人數太少的場館連名字都不列出", async () => {

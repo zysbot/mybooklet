@@ -35,7 +35,6 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     claimId: result.claimId,
-    serial: result.serial,
     alreadyClaimed: result.alreadyClaimed,
   });
 }

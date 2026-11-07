@@ -7,6 +7,7 @@ import { formatDateTime, formatShowTime } from "@/lib/format";
 import { LogoutAdmin } from "./LogoutAdmin";
 import { InviteButton } from "./InviteButton";
 import { ConfigureButton } from "./ConfigureButton";
+import { QrButton } from "./QrButton";
 import { ORG_KIND_LABEL, type OrgKind } from "@/lib/insights";
 import "./admin.css";
 
@@ -150,7 +151,7 @@ export default async function AdminHome() {
                       <td>{Number(s.claims)}</td>
                       <td>{s.chain_configured ? Number(s.minted) : <ConfigureButton showId={String(s.id)} />}</td>
                       <td>{s.code ? <a href={`/c/${s.code}`} target="_blank" rel="noreferrer">/c/{s.code}</a> : "—"}</td>
-                      <td>{s.code && <a className="link-btn" href={`/api/admin/shows/${s.id}/qr`}>QR</a>}</td>
+                      <td>{s.code && <QrButton showId={String(s.id)} caption={`${p.title}・${formatShowTime(s.starts_at)}・${s.venue}`} />}</td>
                     </tr>
                   ))}
                 </tbody>

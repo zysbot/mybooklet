@@ -114,10 +114,10 @@ export default async function OrgDashboard({ params }: { params: Promise<{ id: s
 
           <section className="panel" aria-labelledby="foot-title">
             <h2 id="foot-title">觀眾足跡</h2>
-            <p className="small muted" style={{ margin: 0 }}>你的觀眾在其他演出領過的節目單。不列出其他劇團或製作方。</p>
+            <p className="small muted" style={{ margin: 0 }}>你的觀眾在其他演出領過的節目單。不列出其他劇團或製作方；不到 {MIN_GROUP} 人的類型與場館不列出。</p>
             <h3 className="sub">看其他演出時，也看過的類型</h3>
             <div className="bars">
-              {r.genres.length === 0 ? <p className="muted small" style={{ margin: 0 }}>尚無資料</p> : r.genres.map((g) => <Bar key={g.genre} label={g.genre} m={g.count} />)}
+              {r.genres.length === 0 ? <p className="muted small" style={{ margin: 0 }}>尚無達到 {MIN_GROUP} 人的類型</p> : r.genres.map((g) => <Bar key={g.genre} label={g.genre} m={g.count} />)}
             </div>
             <h3 className="sub">看其他演出時，去過的場館</h3>
             <div className="bars">
