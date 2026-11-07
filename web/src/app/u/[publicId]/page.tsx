@@ -19,7 +19,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ public
   if (!p) notFound();
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="topbar"><Brand /><Link href="/me" className="small">我的收藏冊</Link></div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -42,7 +42,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ public
         </p>
       )}
 
-      <section aria-label="公開的節目單">
+      <section aria-label="公開的節目單" className="pbook-list">
         {p.booklets.length === 0 ? (
           <p className="empty">還沒有公開的節目單。</p>
         ) : (

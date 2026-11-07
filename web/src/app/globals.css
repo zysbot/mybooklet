@@ -148,35 +148,43 @@ a { color: inherit; }
 .cert-row { display: flex; justify-content: space-between; gap: 12px; }
 .mono { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; text-align: right; }
 
-/* 節目單閱讀器 */
+/* 節目單閱讀器（2026-11-07 改版） */
 .reader { display: flex; flex-direction: column; gap: 12px; }
-.reader-track {
-  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
-  border-radius: 8px; background: #e7e0d3; outline: none;
+.reader-stage {
+  position: relative; overflow: hidden; border-radius: 8px; background: #e7e0d3; outline: none;
+  height: min(72dvh, 680px); user-select: none; -webkit-user-select: none; cursor: grab;
 }
-.reader-track::-webkit-scrollbar { display: none; }
-.reader-track:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.reader-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; padding: 12px; }
-.reader-slide img { display: block; max-width: 100%; height: auto; max-height: 72dvh; width: auto; background: #fff; box-shadow: 0 6px 18px rgba(28, 26, 23, 0.18); }
+.reader-stage:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.reader-track { display: flex; height: 100%; will-change: transform; }
+.reader-slide { flex: 0 0 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; }
+.reader-spread { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; transform-origin: center center; }
+.reader-page { display: block; width: auto; height: auto; max-height: 100%; object-fit: contain; background: #fff; box-shadow: 0 6px 18px rgba(28, 26, 23, 0.18); pointer-events: none; }
 .reader-bar { display: flex; align-items: center; gap: 8px; }
 .reader-btn {
   width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .reader-btn:disabled { opacity: 0.3; cursor: default; }
-.reader-count { min-width: 64px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
+.reader-count { min-width: 72px; text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
 .reader-full {
   margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
   border-radius: 999px; border: 0; background: var(--ink); color: var(--paper); font: inherit; font-size: 13px; cursor: pointer;
 }
-.reader-overlay { position: fixed; inset: 0; z-index: 50; background: #141210; display: flex; flex-direction: column; }
-.reader-overlay-bar {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px;
-  color: var(--paper); font-size: 13px; border-bottom: 1px solid #2c2925;
-}
+/* 全螢幕：支援的瀏覽器用真正的全螢幕，iPhone 與 LINE 內則蓋滿畫面 */
+.reader-is-full { position: fixed; inset: 0; z-index: 50; background: #141210; color: var(--paper); gap: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.reader-is-full .reader-stage { flex: 1; height: auto; border-radius: 0; background: #141210; cursor: default; }
+.reader-is-full .reader-slide { padding: 8px; }
+.reader-is-full .reader-page { box-shadow: none; }
+.reader-is-full .reader-bar { justify-content: center; padding: 8px 16px 12px; }
+.reader-is-full .reader-btn { border-color: #8a8378; color: var(--paper); }
+.reader-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #2c2925; font-size: 13px; }
+.reader-top-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader-top-actions { display: inline-flex; align-items: center; gap: 8px; }
+.reader-icon { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #5a554d; background: transparent; color: var(--paper); font-size: 18px; cursor: pointer; }
+.reader-icon:disabled { opacity: 0.35; cursor: default; }
 .reader-close { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #5a554d; background: transparent; color: var(--paper); font: inherit; cursor: pointer; }
-.reader-overlay-pages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; touch-action: pan-x pan-y pinch-zoom; }
-.reader-overlay-pages img { width: 100%; max-width: 900px; height: auto; background: #fff; }
+.reader-hint { font-size: 12px; color: #b9b0a2; margin-left: 8px; }
+@media (max-width: 480px) { .reader-hint { display: none; } }
 
 /* 收藏冊：分組標題與前三喜歡 */
 .group-title { margin: 0; font-family: var(--serif); font-weight: 700; font-size: 18px; }
@@ -242,3 +250,31 @@ a { color: inherit; }
 .consent h2 { margin: 0; font-family: var(--serif); font-size: 17px; }
 .consent ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.7; color: var(--muted); }
 .consent a { color: inherit; text-decoration: underline; margin: 0 2px; }
+
+/* ---------------------------------------------------------------
+   電腦版（2026-11-07）：觀眾端在寬螢幕上放寬
+   --------------------------------------------------------------- */
+.booklet-layout { display: flex; flex-direction: column; gap: 32px; }
+.booklet-aside, .booklet-main { display: contents; }
+.booklet-head { order: 1; display: flex; flex-direction: column; gap: 24px; }
+.booklet-main > .section, .booklet-main > section { order: 2; }
+.booklet-social { order: 3; display: flex; flex-direction: column; gap: 16px; padding-top: 24px; border-top: 1px solid var(--line); }
+.booklet-cert { order: 4; }
+
+@media (min-width: 760px) {
+  .page-wide { max-width: 1200px; padding-left: 32px; padding-right: 32px; }
+  .page-wide .grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 18px; }
+  .page-wide .top3 { max-width: 640px; }
+  .page-wide .pills { flex-wrap: wrap; }
+  .pbook-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); column-gap: 32px; }
+  .legal { max-width: 760px; }
+}
+
+@media (min-width: 960px) {
+  .booklet-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 48px; align-items: start; }
+  .booklet-aside { display: flex; flex-direction: column; gap: 28px; position: sticky; top: 24px; }
+  .booklet-main { display: flex; flex-direction: column; gap: 32px; min-width: 0; }
+  .booklet-social { padding-top: 28px; }
+  .reader-stage { height: min(70vh, 640px); }
+  .reader-is-full .reader-stage { height: auto; }
+}

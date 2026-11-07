@@ -50,12 +50,15 @@ export default async function BookletPage({ params }: Params) {
   const txUrl = minted && b.txHash ? explorerTxUrl(b.txHash) : null;
 
   return (
-    <main className="page" style={{ gap: 32 }}>
+    <main className="page page-wide" style={{ gap: 32 }}>
       <Link href="/me" className="back">
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
         我的收藏冊
       </Link>
 
+      <div className="booklet-layout">
+      <aside className="booklet-aside">
+      <div className="booklet-head">
       <div style={{ display: "flex", justifyContent: "center" }}>
         <ProgramCard
           size="xl"
@@ -80,48 +83,9 @@ export default async function BookletPage({ params }: Params) {
       </div>
 
       <FavoritePicker claimId={b.claimId} title={b.title} initial={favorites} />
+      </div>
 
-      <hr className="rule" />
-
-      {pages.length > 0 ? (
-        <section className="section">
-          <h2>節目單</h2>
-          <BookletReader pages={pages} title={b.title} />
-        </section>
-      ) : (
-        <>
-        {content.intro && (
-          <section className="section">
-            <h2>節目介紹</h2>
-            <p>{content.intro}</p>
-          </section>
-        )}
-        {content.directorNote && (
-          <section className="section">
-            <h2>導演的話</h2>
-            <p>{content.directorNote}</p>
-          </section>
-        )}
-        {content.credits && content.credits.length > 0 && (
-          <section className="section">
-            <h2>演出與製作團隊</h2>
-            <div className="rows" style={{ gap: 10 }}>
-              {content.credits.map((c, i) => (
-                <div className="row" key={i}><span className="row-label">{c.role}</span><span>{c.names}</span></div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        </>
-      )}
-
-      <hr className="rule" />
-
-      {co && <CoCollectors title={b.title} r={co} viewerPublic={Boolean(me?.social_public)} />}
-      <HideToggle claimId={b.claimId} initial={b.hidden} />
-
-      <section className="cert" aria-labelledby="cert-title">
+      <section className="cert booklet-cert" aria-labelledby="cert-title">
         <div className="cert-head">
           <h2 id="cert-title">收藏憑證</h2>
           {minted ? (
@@ -152,6 +116,49 @@ export default async function BookletPage({ params }: Params) {
             : "收藏紀錄會在領取後隔天寫入區塊鏈（每天批次寫入一次），不影響你閱讀節目單。"}
         </p>
       </section>
+      </aside>
+
+      <div className="booklet-main">
+      {pages.length > 0 ? (
+        <section className="section">
+          <h2>節目單</h2>
+          <BookletReader pages={pages} title={b.title} direction={b.readingDirection} storageKey={`${b.designId}-${pages.length}`} />
+        </section>
+      ) : (
+        <>
+        {content.intro && (
+          <section className="section">
+            <h2>節目介紹</h2>
+            <p>{content.intro}</p>
+          </section>
+        )}
+        {content.directorNote && (
+          <section className="section">
+            <h2>導演的話</h2>
+            <p>{content.directorNote}</p>
+          </section>
+        )}
+        {content.credits && content.credits.length > 0 && (
+          <section className="section">
+            <h2>演出與製作團隊</h2>
+            <div className="rows" style={{ gap: 10 }}>
+              {content.credits.map((c, i) => (
+                <div className="row" key={i}><span className="row-label">{c.role}</span><span>{c.names}</span></div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        </>
+      )}
+
+      <div className="booklet-social">
+        {co && <CoCollectors title={b.title} r={co} viewerPublic={Boolean(me?.social_public)} />}
+        <HideToggle claimId={b.claimId} initial={b.hidden} />
+      </div>
+      </div>
+      </div>
+
     </main>
   );
 }

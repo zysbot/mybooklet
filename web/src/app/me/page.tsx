@@ -34,7 +34,7 @@ export default async function MyCollectionPage() {
   const firstYear = booklets.length ? Math.min(...booklets.map((b) => b.startsAt.getFullYear())) : null;
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="topbar">
         <Brand />
         <LogoutButton />

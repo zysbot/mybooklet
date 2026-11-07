@@ -271,3 +271,10 @@ ALTER TABLE claims ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALS
 ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS age_confirmed_at TIMESTAMPTZ;
+
+-- 2026-11-07 閱讀器：每份節目單的翻頁方向（直排節目單由右往左翻）
+ALTER TABLE designs ADD COLUMN IF NOT EXISTS reading_direction TEXT NOT NULL DEFAULT 'ltr';
+DO $$ BEGIN
+  ALTER TABLE designs ADD CONSTRAINT designs_reading_direction_check CHECK (reading_direction IN ('ltr', 'rtl'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

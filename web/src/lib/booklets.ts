@@ -13,6 +13,8 @@ export interface ShowInfo {
   designLabel: string;
   content: BookletContent;
   metadataUri: string | null;
+  /** 翻頁方向：直排節目單由右往左翻 */
+  readingDirection: "ltr" | "rtl";
 }
 
 export interface BookletContent {
@@ -60,7 +62,7 @@ export interface BookletDetail extends ShowInfo {
 // 場次的卡面：場次自己指定的版本，沒有就用節目的預設版本
 const SHOW_SELECT = `
   s.id AS show_id, p.title, p.company_name, p.genre, s.venue, s.starts_at, s.metadata_uri,
-  d.id AS design_id, d.page_count, d.cover_color, d.label AS design_label, d.content
+  d.id AS design_id, d.page_count, d.cover_color, d.label AS design_label, d.content, d.reading_direction
   FROM shows s
   JOIN productions p ON p.id = s.production_id
   JOIN designs d ON d.id = COALESCE(s.design_id, p.default_design_id)`;
@@ -78,6 +80,7 @@ type ShowRow = {
   cover_color: string;
   design_label: string;
   content: BookletContent | string;
+  reading_direction: "ltr" | "rtl";
 };
 
 function toShowInfo(r: ShowRow): ShowInfo {
@@ -94,6 +97,7 @@ function toShowInfo(r: ShowRow): ShowInfo {
     designLabel: r.design_label,
     content: typeof r.content === "string" ? JSON.parse(r.content) : (r.content ?? {}),
     metadataUri: r.metadata_uri,
+    readingDirection: r.reading_direction === "rtl" ? "rtl" : "ltr",
   };
 }
 

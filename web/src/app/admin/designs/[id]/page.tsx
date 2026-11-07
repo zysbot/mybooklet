@@ -17,8 +17,8 @@ export default async function DesignUploadPage({ params }: { params: Promise<{ i
   if (!/^\d+$/.test(id)) notFound();
 
   const db = getDb();
-  const r = await db.query<{ label: string; cover_color: string; title: string; company_name: string; pdf_filename: string | null; pdf_uploaded_at: Date | null; page_count: number }>(
-    `SELECT d.label, d.cover_color, d.pdf_filename, d.pdf_uploaded_at, d.page_count, p.title, p.company_name
+  const r = await db.query<{ label: string; cover_color: string; title: string; company_name: string; pdf_filename: string | null; pdf_uploaded_at: Date | null; page_count: number; reading_direction: string }>(
+    `SELECT d.label, d.cover_color, d.pdf_filename, d.pdf_uploaded_at, d.page_count, d.reading_direction, p.title, p.company_name
        FROM designs d JOIN productions p ON p.id = d.production_id WHERE d.id = $1`,
     [id]
   );
@@ -29,6 +29,14 @@ export default async function DesignUploadPage({ params }: { params: Promise<{ i
     `SELECT label FROM designs WHERE production_id = (SELECT production_id FROM designs WHERE id = $1) AND id <> $1 ORDER BY id`,
     [id]
   );
+
+  async function saveDirection(fd: FormData) {
+    "use server";
+    if (!(await isAdmin())) redirect("/admin/login");
+    const dir = fd.get("direction") === "rtl" ? "rtl" : "ltr";
+    await getDb().query(`UPDATE designs SET reading_direction = $2 WHERE id = $1`, [id, dir]);
+    redirect(`/admin/designs/${id}`);
+  }
 
   return (
     <main className="admin">
@@ -48,6 +56,22 @@ export default async function DesignUploadPage({ params }: { params: Promise<{ i
           上傳完會先讓你預覽，按「確認發布」後觀眾才會看到。
         </p>
         <PdfUploader designId={id} siblingLabels={siblings.rows.map((s) => s.label)} />
+      </section>
+
+      <section className="panel" aria-labelledby="dir-title">
+        <h2 id="dir-title">翻頁方向</h2>
+        <form action={saveDirection} className="form-grid">
+          <label className="field">
+            觀眾往哪個方向翻頁
+            <select name="direction" defaultValue={design.reading_direction}>
+              <option value="ltr">由左往右（橫排節目單，一般）</option>
+              <option value="rtl">由右往左（直排節目單）</option>
+            </select>
+          </label>
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <button type="submit" className="btn btn-primary">儲存</button>
+          </div>
+        </form>
       </section>
 
       <section className="panel" aria-labelledby="current-title">
