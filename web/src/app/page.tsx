@@ -181,13 +181,13 @@ export default async function Home() {
           <div className="home-companies-text">
             <p className="home-eyebrow">給劇團、製作方與場館</p>
             <h2>把節目單交給吾冊，<br />把觀眾留在作品裡。</h2>
-            <p>上傳節目單 PDF，吾冊產生入場 QR code。觀眾掃碼就能讀，不需要你另外印刷或架網站。</p>
+            <p>上傳節目單 PDF，吾冊產生入場 QR code。觀眾掃碼就能讀，不需要你另外印刷或架網站。下一檔演出的消息、問卷或優惠，也可以附在節目單下方。</p>
             <a href="mailto:gm@volumedao.xyz?subject=%E5%90%BE%E5%86%8A%E5%90%88%E4%BD%9C%E6%B4%BD%E8%AB%87" className="home-btn home-btn-light">洽談合作</a>
           </div>
           <ul className="home-benefits">
             <li>
-              <strong>省下印刷</strong>
-              <span>數位節目單取代紙本，內容可以比紙本更完整，演出前一刻還能更新。</span>
+              <strong>省下印刷，響應無紙化</strong>
+              <span>數位節目單取代紙本：少印幾百份、少一趟運送，散場後也不會留下一地被丟掉的節目單。內容可以比紙本更完整，演出前一刻還能更新。</span>
             </li>
             <li>
               <strong>公開、可查證的發行紀錄</strong>

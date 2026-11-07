@@ -4,11 +4,46 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-/** 「公開我的收藏」開關。關閉後立即從所有頭像列與個人頁消失（包括過去的場次）。 */
-export function SocialToggle({ initial, publicId }: { initial: boolean; publicId: string }) {
+/** 「公開我的收藏」開關。關閉後立即從所有頭像列與個人頁消失（包括過去的場次）。13–17 歲不能打開。 */
+export function SocialToggle({ initial, publicId, teen }: { initial: boolean; publicId: string; teen: boolean }) {
   const router = useRouter();
   const [on, setOn] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [askAdult, setAskAdult] = useState(false);
+
+  if (teen) {
+    return (
+      <div className="stack" style={{ gap: 8 }}>
+        <p className="small muted" style={{ margin: 0, lineHeight: 1.7 }}>
+          你第一次領取時選了「13–17 歲」，所以收藏不公開，其他觀眾看不到你的化名與頭像。
+        </p>
+        {askAdult ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <span className="small">確定你已滿 18 歲？</span>
+            <button
+              type="button"
+              className="pill"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await fetch("/api/me/age", { method: "POST" });
+                setBusy(false);
+                router.refresh();
+              }}
+            >
+              是，我已滿 18 歲
+            </button>
+            <button type="button" className="pill" onClick={() => setAskAdult(false)}>取消</button>
+          </div>
+        ) : (
+          <button type="button" className="pill" style={{ alignSelf: "flex-start" }} onClick={() => setAskAdult(true)}>
+            我已經滿 18 歲了
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="stack" style={{ gap: 8 }}>
       <label className="toggle-row">

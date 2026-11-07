@@ -59,6 +59,10 @@ export default async function MyCollectionPage() {
             companyName: b.companyName,
             genre: b.genre,
             venue: b.venue,
+            city: b.city,
+            productionId: b.productionId,
+            workTitle: b.workTitle,
+            festival: b.festival,
             favoriteRank: b.favoriteRank,
             startsAt: b.startsAt.toISOString(),
             serial: b.serial,
@@ -66,7 +70,7 @@ export default async function MyCollectionPage() {
           }))}
         />
       )}
-      <SocialToggle initial={user.social_public} publicId={user.public_id} />
+      <SocialToggle initial={user.social_public} publicId={user.public_id} teen={user.age_group === "teen"} />
       <p className="small muted center" style={{ margin: "8px 0 0" }}>每次入場掃碼，新的節目單會自動出現在這裡</p>
     </main>
   );

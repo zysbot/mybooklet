@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { Db, Queryable } from "./db";
-import { isGenre, isVenue } from "./catalog";
+import { isFestival, isGenre, isVenue } from "./catalog";
 
 export class ProductionError extends Error {}
 
@@ -28,6 +28,10 @@ export interface ProductionInput {
   companyName: string;
   genre: string;
   producerName?: string;
+  /** 作品名稱：重演時填首演的名稱；不填就是節目名稱 */
+  workTitle?: string;
+  /** 藝術節或系列；不屬於藝術節就不填 */
+  festival?: string;
   intro?: string;
   designs: DesignInput[];
   defaultDesign: string;
@@ -73,6 +77,8 @@ export function validateProduction(input: ProductionInput): void {
   if (!company || company.length > 80) throw new ProductionError("請填寫演出團隊（80 字以內）");
   if (!isGenre(input.genre)) throw new ProductionError("請從選單選擇類型");
   if ((input.producerName ?? "").length > 80) throw new ProductionError("製作方名稱過長");
+  if ((input.workTitle ?? "").length > 80) throw new ProductionError("作品名稱請在 80 字以內");
+  if (input.festival && !isFestival(input.festival)) throw new ProductionError("藝術節請從選單選擇");
   if ((input.intro ?? "").length > 2000) throw new ProductionError("節目介紹請在 2000 字以內");
 
   if (!Array.isArray(input.designs) || input.designs.length < 1 || input.designs.length > 6) {
@@ -161,8 +167,9 @@ export async function createProduction(
     const companyId = await orgId(q, company, "company");
     const producerId = input.producerName?.trim() ? await orgId(q, input.producerName.trim(), "producer") : null;
     const prod = await q.query<{ id: string }>(
-      `INSERT INTO productions (organizer_id, title, company_name, genre, producer_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [companyId, title, company, input.genre, producerId]
+      `INSERT INTO productions (organizer_id, title, company_name, genre, producer_id, work_title, festival)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [companyId, title, company, input.genre, producerId, normalizeWork(input.workTitle, title), input.festival || null]
     );
     const pid = String(prod.rows[0].id);
 
@@ -197,6 +204,31 @@ export async function createProduction(
   });
 
   return describe(db, productionId, false);
+}
+
+/** 作品名稱與節目名稱相同或空白時存 NULL（就是節目名稱本身） */
+function normalizeWork(work: string | undefined, title: string): string | null {
+  const w = (work ?? "").trim();
+  return w && w !== title ? w : null;
+}
+
+/** 修改既有節目的作品名稱與藝術節（營運後台） */
+export async function setProductionCategories(q: Queryable, productionId: string, workTitle: string, festival: string): Promise<void> {
+  if (workTitle.length > 80) throw new ProductionError("作品名稱請在 80 字以內");
+  if (festival && !isFestival(festival)) throw new ProductionError("藝術節請從選單選擇");
+  const p = await q.query<{ title: string }>(`SELECT title FROM productions WHERE id = $1`, [productionId]);
+  if (!p.rows[0]) throw new ProductionError("找不到節目");
+  await q.query(`UPDATE productions SET work_title = $2, festival = $3 WHERE id = $1`, [
+    productionId,
+    normalizeWork(workTitle, p.rows[0].title),
+    festival || null,
+  ]);
+}
+
+/** 已有的作品名稱，給後台下拉提示用（避免打錯字拆成兩部作品） */
+export async function listWorkTitles(q: Queryable): Promise<string[]> {
+  const r = await q.query<{ w: string }>(`SELECT DISTINCT COALESCE(NULLIF(work_title, ''), title) AS w FROM productions ORDER BY w`);
+  return r.rows.map((x) => x.w);
 }
 
 /** 把場次的內容網址寫進合約；已寫過的略過。回傳每個場次的結果。 */

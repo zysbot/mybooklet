@@ -17,3 +17,10 @@
   .bar-row { grid-template-columns: 1fr auto; }
   .bar-track { grid-column: 1 / -1; grid-row: 2; }
 }
+/* 附加文宣 */
+.att-prod { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.att-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.att-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: #fff; border: 1px solid var(--line); }
+.att-add summary { list-style: none; cursor: pointer; display: inline-flex; }
+.att-add summary::-webkit-details-marker { display: none; }
+@media (max-width: 560px) { .att-row { grid-template-columns: 1fr auto; } .att-row form { grid-column: 1 / -1; } }

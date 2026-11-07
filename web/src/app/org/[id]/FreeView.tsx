@@ -4,9 +4,11 @@ import { getDb } from "@/lib/db";
 import { getFreeStats, ORG_KIND_LABEL } from "@/lib/insights";
 import { FREE_CLAIM_LIMIT, freeUsage } from "@/lib/plans";
 import { formatShowTime } from "@/lib/format";
+import { OrgBrand } from "../OrgBrand";
+import { AttachmentsPanel } from "./AttachmentsPanel";
 
 /** 免費方案的主辦方後台：只有每場份數與鏈上寫入數，沒有觀眾分析 */
-export async function FreeView({ organizerId, adminNote }: { organizerId: string; adminNote: React.ReactNode }) {
+export async function FreeView({ organizerId, adminNote, attError }: { organizerId: string; adminNote: React.ReactNode; attError?: string }) {
   const db = getDb();
   const r = await getFreeStats(db, organizerId);
   if (!r) notFound();
@@ -16,6 +18,7 @@ export async function FreeView({ organizerId, adminNote }: { organizerId: string
 
   return (
     <main className="admin">
+      <OrgBrand />
       <div className="admin-top">
         <div className="stack" style={{ gap: 4 }}>
           <span className="small muted">{ORG_KIND_LABEL[organizer.kind]}・免費方案</span>
@@ -73,10 +76,12 @@ export async function FreeView({ organizerId, adminNote }: { organizerId: string
         </p>
       </section>
 
+      <AttachmentsPanel organizerId={organizerId} plan="free" error={attError} />
+
       <section className="panel">
         <h2>合作方案可以看到更多</h2>
         <p className="muted" style={{ margin: 0, lineHeight: 1.7 }}>
-          與吾冊合作期間，後台會提供觀眾組成（第一次使用吾冊、回頭觀眾）、收藏深度、觀眾在其他演出看過的類型與場館等匿名統計，且不限發放份數。統計一律不含觀眾個人資料。
+          與吾冊合作期間，後台會提供觀眾組成（第一次使用吾冊、回頭觀眾）、收藏深度、觀眾在其他演出看過的類型與場館等匿名統計，且不限發放份數，每檔節目可附 3 則文宣。統計一律不含觀眾個人資料。
         </p>
       </section>
     </main>

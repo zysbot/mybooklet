@@ -1,4 +1,5 @@
 import type { Queryable } from "./db";
+import { cityOfVenue } from "./catalog";
 
 export interface ShowInfo {
   showId: string;
@@ -15,6 +16,11 @@ export interface ShowInfo {
   metadataUri: string | null;
   /** 翻頁方向：直排節目單由右往左翻 */
   readingDirection: "ltr" | "rtl";
+  productionId: string;
+  /** 作品名稱：重演的版本歸在同一部作品；沒設定就是節目名稱 */
+  workTitle: string;
+  festival: string | null;
+  city: string | null;
 }
 
 export interface BookletContent {
@@ -36,6 +42,10 @@ export interface BookletSummary {
   companyName: string;
   genre: string | null;
   venue: string;
+  city: string | null;
+  productionId: string;
+  workTitle: string;
+  festival: string | null;
   /** 前三喜歡的名次；沒有標記為 null */
   favoriteRank: number | null;
   startsAt: Date;
@@ -61,7 +71,7 @@ export interface BookletDetail extends ShowInfo {
 
 // 場次的卡面：場次自己指定的版本，沒有就用節目的預設版本
 const SHOW_SELECT = `
-  s.id AS show_id, p.title, p.company_name, p.genre, s.venue, s.starts_at, s.metadata_uri,
+  s.id AS show_id, p.id AS production_id, COALESCE(NULLIF(p.work_title, ''), p.title) AS work_title, p.festival, p.title, p.company_name, p.genre, s.venue, s.starts_at, s.metadata_uri,
   d.id AS design_id, d.page_count, d.cover_color, d.label AS design_label, d.content, d.reading_direction
   FROM shows s
   JOIN productions p ON p.id = s.production_id
@@ -69,6 +79,9 @@ const SHOW_SELECT = `
 
 type ShowRow = {
   show_id: string;
+  production_id: string;
+  work_title: string;
+  festival: string | null;
   design_id: string;
   page_count: number;
   title: string;
@@ -98,6 +111,10 @@ function toShowInfo(r: ShowRow): ShowInfo {
     content: typeof r.content === "string" ? JSON.parse(r.content) : (r.content ?? {}),
     metadataUri: r.metadata_uri,
     readingDirection: r.reading_direction === "rtl" ? "rtl" : "ltr",
+    productionId: String(r.production_id),
+    workTitle: r.work_title,
+    festival: r.festival,
+    city: cityOfVenue(r.venue),
   };
 }
 
@@ -134,6 +151,10 @@ export async function listUserBooklets(q: Queryable, userId: string): Promise<Bo
     companyName: row.company_name,
     genre: row.genre,
     venue: row.venue,
+    city: cityOfVenue(row.venue),
+    productionId: String(row.production_id),
+    workTitle: row.work_title,
+    festival: row.festival,
     favoriteRank: row.fav_rank === null ? null : Number(row.fav_rank),
     startsAt: new Date(row.starts_at),
     serial: Number(row.serial),

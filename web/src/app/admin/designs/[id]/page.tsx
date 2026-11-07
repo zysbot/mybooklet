@@ -6,19 +6,29 @@ import { getDb } from "@/lib/db";
 import { getDesignPages, MAX_PAGES } from "@/lib/pages";
 import { formatDateTime } from "@/lib/format";
 import { PdfUploader } from "./PdfUploader";
+import { FESTIVALS } from "@/lib/catalog";
+import { listWorkTitles, ProductionError, setProductionCategories } from "@/lib/productions";
 import "../../admin.css";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "上傳節目單｜吾冊後台", robots: { index: false } };
 
-export default async function DesignUploadPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DesignUploadPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ catError?: string }>;
+}) {
+  const { catError } = await searchParams;
   if (!(await isAdmin())) redirect("/admin/login");
   const { id } = await params;
   if (!/^\d+$/.test(id)) notFound();
 
   const db = getDb();
-  const r = await db.query<{ label: string; cover_color: string; title: string; company_name: string; pdf_filename: string | null; pdf_uploaded_at: Date | null; page_count: number; reading_direction: string }>(
-    `SELECT d.label, d.cover_color, d.pdf_filename, d.pdf_uploaded_at, d.page_count, d.reading_direction, p.title, p.company_name
+  const r = await db.query<{ label: string; cover_color: string; title: string; company_name: string; pdf_filename: string | null; pdf_uploaded_at: Date | null; page_count: number; reading_direction: string; production_id: string; work_title: string | null; festival: string | null }>(
+    `SELECT d.label, d.cover_color, d.pdf_filename, d.pdf_uploaded_at, d.page_count, d.reading_direction, p.title, p.company_name,
+            p.id AS production_id, p.work_title, p.festival
        FROM designs d JOIN productions p ON p.id = d.production_id WHERE d.id = $1`,
     [id]
   );
@@ -35,6 +45,20 @@ export default async function DesignUploadPage({ params }: { params: Promise<{ i
     if (!(await isAdmin())) redirect("/admin/login");
     const dir = fd.get("direction") === "rtl" ? "rtl" : "ltr";
     await getDb().query(`UPDATE designs SET reading_direction = $2 WHERE id = $1`, [id, dir]);
+    redirect(`/admin/designs/${id}`);
+  }
+
+  const workTitles = await listWorkTitles(db);
+
+  async function saveCategories(fd: FormData) {
+    "use server";
+    if (!(await isAdmin())) redirect("/admin/login");
+    try {
+      await setProductionCategories(getDb(), String(design.production_id), String(fd.get("work") ?? "").trim(), String(fd.get("festival") ?? ""));
+    } catch (err) {
+      if (err instanceof ProductionError) redirect(`/admin/designs/${id}?catError=${encodeURIComponent(err.message)}`);
+      throw err;
+    }
     redirect(`/admin/designs/${id}`);
   }
 
@@ -66,6 +90,31 @@ export default async function DesignUploadPage({ params }: { params: Promise<{ i
             <select name="direction" defaultValue={design.reading_direction}>
               <option value="ltr">由左往右（橫排節目單，一般）</option>
               <option value="rtl">由右往左（直排節目單）</option>
+            </select>
+          </label>
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <button type="submit" className="btn btn-primary">儲存</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="panel" aria-labelledby="cat-title">
+        <h2 id="cat-title">收藏冊分類</h2>
+        <p className="muted small" style={{ margin: 0, lineHeight: 1.7 }}>
+          這兩項是整檔節目共用的。重演的作品請選首演的名稱，觀眾收藏冊的「作品」分類會把不同年份的版本歸在一起。縣市依場館自動判斷。
+        </p>
+        {catError && <p className="error" role="alert">{catError}</p>}
+        <form action={saveCategories} className="form-grid">
+          <label className="field">
+            作品名稱（留白＝節目名稱《{design.title}》）
+            <input name="work" defaultValue={design.work_title ?? ""} maxLength={80} list="work-titles" />
+            <datalist id="work-titles">{workTitles.map((w) => <option key={w} value={w} />)}</datalist>
+          </label>
+          <label className="field">
+            藝術節
+            <select name="festival" defaultValue={design.festival ?? ""}>
+              <option value="">不屬於藝術節</option>
+              {FESTIVALS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </label>
           <div style={{ display: "flex", alignItems: "flex-end" }}>

@@ -11,6 +11,8 @@ import { FreeView } from "./FreeView";
 import { formatShowTime } from "@/lib/format";
 import "../../admin/admin.css";
 import "../org.css";
+import { OrgBrand } from "../OrgBrand";
+import { AttachmentsPanel } from "./AttachmentsPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "主辦方後台｜吾冊", robots: { index: false } };
@@ -32,8 +34,9 @@ function Bar({ label, m }: { label: string; m: Masked }) {
   );
 }
 
-export default async function OrgDashboard({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrgDashboard({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ attError?: string }> }) {
   const { id } = await params;
+  const { attError } = await searchParams;
   const db = getDb();
   const [account, admin] = await Promise.all([currentOrgAccount(), isAdmin()]);
   if (!account && !admin) redirect("/org");
@@ -52,7 +55,7 @@ export default async function OrgDashboard({ params }: { params: Promise<{ id: s
     </p>
   ) : null;
 
-  if (plan.effective === "free") return <FreeView organizerId={id} adminNote={adminNote} />;
+  if (plan.effective === "free") return <FreeView organizerId={id} adminNote={adminNote} attError={attError} />;
 
   const r = await getInsights(db, id);
   if (!r) notFound();
@@ -60,6 +63,7 @@ export default async function OrgDashboard({ params }: { params: Promise<{ id: s
 
   return (
     <main className="admin">
+      <OrgBrand />
       <div className="admin-top">
         <div className="stack" style={{ gap: 4 }}>
           <span className="small muted">{ORG_KIND_LABEL[organizer.kind]}</span>
@@ -153,6 +157,7 @@ export default async function OrgDashboard({ params }: { params: Promise<{ id: s
           </section>
         </>
       )}
+      <AttachmentsPanel organizerId={id} plan={plan.effective} error={attError} />
     </main>
   );
 }

@@ -54,6 +54,7 @@ export function TestDataTools({
         companyName: t.company,
         genre: t.genre,
         producerName: t.producer,
+        festival: t.festival,
         intro: t.intro,
         designs: [{ key: "regular", label: "一般場", coverColor: t.coverColor }],
         defaultDesign: "regular",

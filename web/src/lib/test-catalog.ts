@@ -11,6 +11,7 @@ export interface TestProduction {
   venue: string;
   startsAt: string;
   producer?: string;
+  festival?: string;
   coverColor: string;
   intro: string;
   manual?: boolean;
@@ -25,7 +26,7 @@ export const TEST_CATALOG: TestProduction[] = [
     intro: "一座臨海小鎮的氣象站裡，退休的觀測員每天記錄潮汐，也記錄那些沒有寄出的信。" },
   { file: "02-", title: "鹽的聲音", company: "鹽舞團", genre: "舞蹈", venue: "臺中國家歌劇院", startsAt: "2026-09-13T19:30:00+08:00", coverColor: "#7A5518", reach: 0.45,
     intro: "五位舞者在鋪滿粗鹽的舞台上移動，腳步摩擦的聲音成為作品唯一的配樂。" },
-  { file: "03-", title: "夜行列車", company: "雙聲室內樂團", genre: "音樂", venue: "國家音樂廳", startsAt: "2026-06-02T19:30:00+08:00", producer: TEST_PRODUCER, coverColor: "#5B2C45", reach: 0.5,
+  { file: "03-", title: "夜行列車", company: "雙聲室內樂團", genre: "音樂", venue: "國家音樂廳", startsAt: "2026-06-02T19:30:00+08:00", producer: TEST_PRODUCER, festival: "臺灣國際藝術節", coverColor: "#5B2C45", reach: 0.5,
     intro: "一場從黃昏到清晨的音樂旅程，曲目依照夜車停靠的站名編排。" },
   { file: "04-", title: "白蛇・新編", company: "蘭庭戲班", genre: "戲曲", venue: "臺北市中山堂", startsAt: "2025-12-20T19:00:00+08:00", coverColor: "#8E1B1B", reach: 0.35,
     intro: "以傳統歌仔戲唱腔重新編排白蛇故事，這一次從小青的角度講起。" },
@@ -35,9 +36,9 @@ export const TEST_CATALOG: TestProduction[] = [
     intro: "老木偶師傅在海邊撿到一塊漂流木，雕成了一個想去看海的木偶。" },
   { file: "07-", title: "港口女孩", company: "潮間帶劇團", genre: "音樂劇", venue: "國家戲劇院", startsAt: "2027-02-14T19:30:00+08:00", producer: TEST_PRODUCER, coverColor: "#1B7F72", reach: 0.7,
     intro: "1960 年代的港口，一位罐頭工廠的女孩，夢想站上碼頭邊那間歌廳的舞台。" },
-  { file: "08-", title: "第三個房間", company: "小島實驗室", genre: "實驗表演", venue: "臺北表演藝術中心", startsAt: "2024-10-05T20:00:00+08:00", coverColor: "#111111", reach: 0.3,
+  { file: "08-", title: "第三個房間", company: "小島實驗室", genre: "實驗表演", venue: "臺北表演藝術中心", startsAt: "2024-10-05T20:00:00+08:00", festival: "臺北藝穗節", coverColor: "#111111", reach: 0.3,
     intro: "觀眾被分成三組，分別進入三個房間。每個房間裡發生的是同一件事。" },
-  { file: "09-", title: "退潮", company: "鹽舞團", genre: "舞蹈", venue: "衛武營國家藝術文化中心", startsAt: "2025-12-06T19:30:00+08:00", producer: TEST_PRODUCER, coverColor: "#2F3B3F", reach: 0.55,
+  { file: "09-", title: "退潮", company: "鹽舞團", genre: "舞蹈", venue: "衛武營國家藝術文化中心", startsAt: "2025-12-06T19:30:00+08:00", producer: TEST_PRODUCER, festival: "衛武營國際藝術節", coverColor: "#2F3B3F", reach: 0.55,
     intro: "一支關於離開的舞。被留下的，其實是看的人。" },
   { file: "10-", title: "島嶼合唱", company: "南風合唱團", genre: "音樂", venue: "臺南文化中心", startsAt: "2026-03-28T19:30:00+08:00", coverColor: "#4E7D3A", reach: 0.4,
     intro: "四十位團員，唱遍島嶼的山、海與城市。" },

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Db } from "@/lib/db";
 import { findOrCreateUser, getUser } from "@/lib/users";
-import { needsConsent, parseConsent, recordConsent } from "@/lib/consent";
+import { needsConsent, parseConsent, recordConsent, confirmAdult } from "@/lib/consent";
+import { setSocialPublic } from "@/lib/social";
 import { listHomeProductions } from "@/lib/booklets";
 import { LEGAL_VERSION } from "@/content/legal";
 import { createTestDb, seedShow } from "./helpers";
@@ -16,20 +17,35 @@ describe("首次領取告知", () => {
     expect(needsConsent(null)).toBe(true);
     const u = await findOrCreateUser(db, { provider: "line", subject: "U1" });
     expect(needsConsent(u)).toBe(true);
-    await recordConsent(db, u.id, { age13: true, socialPublic: false }, new Date("2026-11-07T07:00:00Z"));
+    await recordConsent(db, u.id, { age: "adult", socialPublic: false }, new Date("2026-11-07T07:00:00Z"));
     const after = (await getUser(db, u.id))!;
     expect(needsConsent(after)).toBe(false);
     expect(after.terms_version).toBe(LEGAL_VERSION);
     expect(after.age_confirmed_at).toEqual(new Date("2026-11-07T07:00:00Z"));
     expect(after.social_public).toBe(false);
+    expect(after.age_group).toBe("adult");
   });
 
-  it("沒勾「我已滿 13 歲」不算同意", () => {
+  it("沒選年齡或沒勾同意不算同意；13–17 歲一律不公開", () => {
     expect(parseConsent(undefined)).toBeNull();
-    expect(parseConsent({ age13: false, socialPublic: true })).toBeNull();
-    expect(parseConsent({ age13: "yes" })).toBeNull();
-    expect(parseConsent({ age13: true })).toEqual({ age13: true, socialPublic: false });
-    expect(parseConsent({ age13: true, socialPublic: true })).toEqual({ age13: true, socialPublic: true });
+    expect(parseConsent({ age: "adult", agree: false, socialPublic: true })).toBeNull();
+    expect(parseConsent({ agree: true, socialPublic: true })).toBeNull();
+    expect(parseConsent({ age: "kid", agree: true })).toBeNull();
+    expect(parseConsent({ age13: true, socialPublic: true })).toBeNull(); // 舊格式
+    expect(parseConsent({ age: "adult", agree: true })).toEqual({ age: "adult", socialPublic: false });
+    expect(parseConsent({ age: "adult", agree: true, socialPublic: true })).toEqual({ age: "adult", socialPublic: true });
+    expect(parseConsent({ age: "teen", agree: true, socialPublic: true })).toEqual({ age: "teen", socialPublic: false });
+  });
+
+  it("13–17 歲不能打開公開收藏，自己改成滿 18 歲後才可以", async () => {
+    const u = await findOrCreateUser(db, { provider: "line", subject: "U2" });
+    await recordConsent(db, u.id, { age: "teen", socialPublic: true });
+    expect((await getUser(db, u.id))!.social_public).toBe(false);
+    expect(await setSocialPublic(db, u.id, true)).toBe(false);
+    expect(await setSocialPublic(db, u.id, false)).toBe(true);
+    await confirmAdult(db, u.id);
+    expect(await setSocialPublic(db, u.id, true)).toBe(true);
+    expect((await getUser(db, u.id))!.social_public).toBe(true);
   });
 });
 

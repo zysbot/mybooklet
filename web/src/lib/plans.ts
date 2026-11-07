@@ -18,6 +18,9 @@ export const PLAN_LABEL: Record<Plan, string> = {
 /** 免費組織（以演出團隊計）所有場次合計可發出的份數 */
 export const FREE_CLAIM_LIMIT = 50;
 
+/** 每檔節目同時可以掛幾則附加文宣（見 attachments.ts） */
+export const ATTACHMENT_LIMIT: Record<Plan, number> = { free: 1, basic: 3 };
+
 /** SQL 片段：組織目前實際適用的方案（o 是 organizers 的別名） */
 export const EFFECTIVE_PLAN_SQL = `CASE WHEN o.plan <> 'free' AND (o.plan_until IS NULL OR o.plan_until >= (now() AT TIME ZONE 'Asia/Taipei')::date)
   THEN o.plan ELSE 'free' END`;

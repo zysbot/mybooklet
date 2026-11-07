@@ -29,7 +29,7 @@ export function ProgramCard({ title, companyName, startsAt, color, size, stubRig
             <span>{formatDate(startsAt)}</span>
           </div>
         </div>
-        <span className="card-title">{title}</span>
+        <span className={`card-title${[...title].length > 14 ? " card-title-longer" : [...title].length > 7 ? " card-title-long" : ""}`}>{title}</span>
       </div>
       <div className="card-tear" />
       <div className="card-stub">

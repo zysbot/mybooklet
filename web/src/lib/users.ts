@@ -19,8 +19,10 @@ export interface User {
   /** 同意使用條款與隱私權政策的時間；NULL 表示還沒看過首次領取告知 */
   terms_accepted_at: Date | null;
   terms_version: string | null;
-  /** 勾選「我已滿 13 歲」的時間 */
+  /** 選擇年齡區間的時間（11/07 以前是勾選「我已滿 13 歲」的時間） */
   age_confirmed_at: Date | null;
+  /** 年齡區間：adult（18 歲以上）／teen（13–17 歲，收藏一律不公開）；NULL 表示還沒選 */
+  age_group: "adult" | "teen" | null;
 }
 
 /** 登入身分：只取帳號編號與 Email（Email 只用來寄通知），不取名稱與大頭貼 */

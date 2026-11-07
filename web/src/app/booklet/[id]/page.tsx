@@ -15,6 +15,8 @@ import { getUser } from "@/lib/users";
 import { getCoCollectors } from "@/lib/social";
 import { CoCollectors } from "@/components/social/CoCollectors";
 import { HideToggle } from "@/components/social/HideToggle";
+import { listActiveAttachments } from "@/lib/attachments";
+import { Attachments } from "@/components/Attachments";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +40,12 @@ export default async function BookletPage({ params }: Params) {
   const db = getDb();
   const b = await getBooklet(db, id, userId);
   if (!b) notFound();
-  const [pages, favorites, co, me] = await Promise.all([
+  const [pages, favorites, co, me, attachments] = await Promise.all([
     b.pageCount > 0 ? getDesignPages(db, b.designId) : Promise.resolve([]),
     getFavorites(db, userId),
     getCoCollectors(db, userId, b.claimId),
     getUser(db, userId),
+    listActiveAttachments(db, b.productionId),
   ]);
 
   const { content } = b;
@@ -77,7 +80,8 @@ export default async function BookletPage({ params }: Params) {
         </div>
         <div className="rows">
           <div className="row"><span className="row-label">日期</span><span>{formatShowTime(b.startsAt)}</span></div>
-          <div className="row"><span className="row-label">場地</span><span>{b.venue}</span></div>
+          <div className="row"><span className="row-label">場地</span><span>{b.city ? `${b.venue}・${b.city}` : b.venue}</span></div>
+          {b.festival && <div className="row"><span className="row-label">藝術節</span><span>{b.festival}</span></div>}
           {content.duration && <div className="row"><span className="row-label">長度</span><span>{content.duration}</span></div>}
         </div>
       </div>
@@ -151,6 +155,8 @@ export default async function BookletPage({ params }: Params) {
 
         </>
       )}
+
+      <Attachments items={attachments} companyName={b.companyName} claimId={b.claimId} />
 
       <div className="booklet-social">
         {co && <CoCollectors title={b.title} r={co} viewerPublic={Boolean(me?.social_public)} />}

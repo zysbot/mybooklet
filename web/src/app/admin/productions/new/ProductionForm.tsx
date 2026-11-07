@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GENRES, VENUES, COVER_COLORS } from "@/lib/catalog";
+import { GENRES, VENUES, COVER_COLORS, FESTIVALS } from "@/lib/catalog";
 import { networkLabel } from "@/lib/network";
 import { testClaimWindow } from "@/lib/test-catalog";
 import { PdfUploader } from "../../designs/[id]/PdfUploader";
@@ -30,8 +30,10 @@ interface Created {
 const toIso = (local: string) => `${local}:00+08:00`;
 let rowId = 1;
 
-export function ProductionForm() {
+export function ProductionForm({ workTitles }: { workTitles: string[] }) {
   const [title, setTitle] = useState("");
+  const [workTitle, setWorkTitle] = useState("");
+  const [festival, setFestival] = useState("");
   const [genre, setGenre] = useState("");
   const [company, setCompany] = useState("");
   const [producer, setProducer] = useState("");
@@ -60,6 +62,8 @@ export function ProductionForm() {
       genre,
       companyName: company,
       producerName: producer || undefined,
+      workTitle: workTitle || undefined,
+      festival: festival || undefined,
       intro,
       designs,
       defaultDesign,
@@ -156,6 +160,18 @@ export function ProductionForm() {
           <label className="field">
             <span>製作方（與演出團隊不同時才填）</span>
             <input value={producer} onChange={(e) => setProducer(e.target.value)} maxLength={80} />
+          </label>
+          <label className="field">
+            <span>作品名稱（重演時選首演的名稱；不是重演就留白）</span>
+            <input value={workTitle} onChange={(e) => setWorkTitle(e.target.value)} maxLength={80} list="work-titles" placeholder={title || "留白＝節目名稱"} />
+            <datalist id="work-titles">{workTitles.map((w) => <option key={w} value={w} />)}</datalist>
+          </label>
+          <label className="field">
+            <span>藝術節（選填）</span>
+            <select value={festival} onChange={(e) => setFestival(e.target.value)}>
+              <option value="">不屬於藝術節</option>
+              {FESTIVALS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
           </label>
         </div>
         <label className="field">

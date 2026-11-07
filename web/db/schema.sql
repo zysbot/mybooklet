@@ -278,3 +278,43 @@ DO $$ BEGIN
   ALTER TABLE designs ADD CONSTRAINT designs_reading_direction_check CHECK (reading_direction IN ('ltr', 'rtl'));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- ---------------------------------------------------------------
+-- 2026-11-07 年齡區間、收藏冊分類、主辦方附加文宣
+-- ---------------------------------------------------------------
+
+-- 第一次領取時選的年齡區間：adult（18 歲以上）／teen（13–17 歲）。teen 的收藏一律不公開。
+-- 11/07 以前同意的帳號為 NULL（當時勾的是「我已滿 13 歲」），視同未選。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS age_group TEXT;
+DO $$ BEGIN
+  ALTER TABLE users ADD CONSTRAINT users_age_group_check CHECK (age_group IN ('adult', 'teen'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- 作品名稱：重演時填首演的名稱，讓不同年份的版本在收藏冊歸成同一部作品。NULL 表示就是節目名稱。
+ALTER TABLE productions ADD COLUMN IF NOT EXISTS work_title TEXT;
+-- 藝術節或系列，例如「臺北藝術節」。選項在 web/src/lib/catalog.ts。
+ALTER TABLE productions ADD COLUMN IF NOT EXISTS festival TEXT;
+
+-- 主辦方附加文宣：主辦方放在節目單下方給觀眾的資料（下一檔演出、優惠、問卷等）。
+-- 不上鏈、不算收藏。每檔節目的則數上限依方案（web/src/lib/plans.ts）。
+-- clicks 只記總數，不記是誰點的。
+CREATE TABLE IF NOT EXISTS attachments (
+  id             BIGSERIAL PRIMARY KEY,
+  production_id  BIGINT NOT NULL REFERENCES productions(id),
+  title          TEXT NOT NULL,
+  note           TEXT,
+  -- 上傳的檔案：圖片（直接顯示）或 PDF（點了開啟）
+  file_url       TEXT,
+  file_kind      TEXT CHECK (file_kind IN ('image', 'pdf')),
+  -- 外部連結（只接受 https）
+  link_url       TEXT,
+  -- 顯示到這天為止（台北日期，當天仍顯示）；NULL 表示不設期限
+  show_until     DATE,
+  clicks         INTEGER NOT NULL DEFAULT 0,
+  created_by     TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  removed_at     TIMESTAMPTZ,
+  CHECK (file_url IS NOT NULL OR link_url IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS attachments_production ON attachments (production_id) WHERE removed_at IS NULL;

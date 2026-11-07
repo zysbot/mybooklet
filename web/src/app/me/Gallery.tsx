@@ -11,28 +11,45 @@ export interface GalleryItem {
   companyName: string;
   genre: string | null;
   venue: string;
+  city: string | null;
+  productionId: string;
+  workTitle: string;
+  festival: string | null;
   startsAt: string;
   serial: number;
   color: string;
   favoriteRank: number | null;
 }
 
-type Mode = "time" | "genre" | "year" | "venue" | "company";
+type Mode = "time" | "genre" | "year" | "city" | "venue" | "company" | "work" | "festival";
 
 const MODES: { key: Mode; label: string }[] = [
   { key: "time", label: "時間" },
   { key: "genre", label: "類型" },
   { key: "year", label: "年份" },
+  { key: "city", label: "縣市" },
   { key: "venue", label: "場館" },
   { key: "company", label: "劇團" },
+  { key: "work", label: "作品" },
+  { key: "festival", label: "藝術節" },
 ];
+
+const NO_FESTIVAL = "不屬於藝術節";
 
 function groupKey(item: GalleryItem, mode: Mode): string {
   if (mode === "genre") return item.genre ?? "其他";
   if (mode === "year") return String(new Date(item.startsAt).getFullYear());
+  if (mode === "city") return item.city ?? "其他";
   if (mode === "venue") return item.venue;
   if (mode === "company") return item.companyName;
+  if (mode === "work") return item.workTitle;
+  if (mode === "festival") return item.festival ?? NO_FESTIVAL;
   return "";
+}
+
+/** 同一部作品有幾個版本（不同製作，例如首演與重演） */
+function versions(items: GalleryItem[]): number {
+  return new Set(items.map((i) => i.productionId)).size;
 }
 
 function Card({ item }: { item: GalleryItem }) {
@@ -65,10 +82,19 @@ export function Gallery({ items }: { items: GalleryItem[] }) {
       map.set(k, [...(map.get(k) ?? []), item]);
     }
     const list = [...map.entries()].map(([name, list]) => ({ name, items: list }));
-    // 年份由新到舊；其他依份數多寡
-    return mode === "year"
-      ? list.sort((a, b) => Number(b.name) - Number(a.name))
-      : list.sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name, "zh-Hant"));
+    const byCount = (a: { name: string; items: GalleryItem[] }, b: { name: string; items: GalleryItem[] }) =>
+      b.items.length - a.items.length || a.name.localeCompare(b.name, "zh-Hant");
+    // 年份由新到舊；作品先列有重演的；藝術節把「不屬於藝術節」放最後；其他依份數多寡
+    if (mode === "year") return list.sort((a, b) => Number(b.name) - Number(a.name));
+    if (mode === "work") {
+      // 有重演（兩個以上版本）的作品各自一組；只看過一個版本的合成一組放最後
+      const multi = list.filter((g) => versions(g.items) > 1).sort((a, b) => versions(b.items) - versions(a.items) || byCount(a, b));
+      const single = list.filter((g) => versions(g.items) <= 1).flatMap((g) => g.items);
+      single.sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+      return single.length ? [...multi, { name: multi.length ? "其他作品" : "還沒有看過同一部作品的不同版本", items: single, merged: true }] : multi;
+    }
+    if (mode === "festival") return list.sort((a, b) => Number(a.name === NO_FESTIVAL) - Number(b.name === NO_FESTIVAL) || byCount(a, b));
+    return list.sort(byCount);
   }, [items, mode]);
 
   return (
@@ -112,7 +138,9 @@ export function Gallery({ items }: { items: GalleryItem[] }) {
           {g.name && (
             <h2 className="group-title">
               {g.name}
-              <span className="muted small" style={{ fontWeight: 400, marginLeft: 8 }}>{g.items.length} 份</span>
+              <span className="muted small" style={{ fontWeight: 400, marginLeft: 8 }}>
+                {g.items.length} 份{mode === "work" && !("merged" in g) && versions(g.items) > 1 ? `・${versions(g.items)} 個版本` : ""}
+              </span>
             </h2>
           )}
           <div className="grid">

@@ -201,8 +201,13 @@ export async function getProfile(q: Queryable, viewerId: string, publicId: strin
   };
 }
 
-export async function setSocialPublic(q: Queryable, userId: string, isPublic: boolean): Promise<void> {
-  await q.query(`UPDATE users SET social_public = $2 WHERE id = $1`, [userId, isPublic]);
+/** 打開或關閉公開收藏。13–17 歲的觀眾不能打開，回傳 false。 */
+export async function setSocialPublic(q: Queryable, userId: string, isPublic: boolean): Promise<boolean> {
+  const r = await q.query(
+    `UPDATE users SET social_public = $2 WHERE id = $1 AND ($2 = FALSE OR age_group IS DISTINCT FROM 'teen') RETURNING id`,
+    [userId, isPublic]
+  );
+  return r.rows.length > 0;
 }
 
 /** 隱藏或取消隱藏自己的一份節目單；不是本人的回傳 false */

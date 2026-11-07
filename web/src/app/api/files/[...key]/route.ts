@@ -1,6 +1,6 @@
 import { readLocalFile } from "@/lib/storage";
 
-const TYPES: Record<string, string> = { webp: "image/webp", jpg: "image/jpeg" };
+const TYPES: Record<string, string> = { webp: "image/webp", jpg: "image/jpeg", png: "image/png", pdf: "application/pdf" };
 
 /** 只在本機開發時使用：正式環境的頁面圖片放在 Vercel Blob，有自己的網址 */
 export async function GET(_req: Request, { params }: { params: Promise<{ key: string[] }> }) {

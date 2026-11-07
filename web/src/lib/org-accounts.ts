@@ -39,7 +39,7 @@ export async function logAccess(
   q: Queryable,
   organizerId: string | null,
   actor: string,
-  action: "login" | "view" | "member_added" | "member_removed" | "plan_changed",
+  action: "login" | "view" | "member_added" | "member_removed" | "plan_changed" | "attachment_added" | "attachment_removed",
   detail?: string
 ): Promise<void> {
   await q.query(`INSERT INTO org_access_log (organizer_id, actor, action, detail) VALUES ($1, $2, $3, $4)`, [

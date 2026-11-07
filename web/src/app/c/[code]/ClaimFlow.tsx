@@ -27,7 +27,9 @@ interface Props {
   needsConsent: boolean;
 }
 
-type Consent = { age13: boolean; socialPublic: boolean };
+type Consent = { age: "adult" | "teen" | null; agree: boolean; socialPublic: boolean };
+const EMPTY_CONSENT: Consent = { age: null, agree: false, socialPublic: true };
+const consentReady = (c: Consent) => c.age !== null && c.agree;
 const CONSENT_KEY = "mb_consent";
 
 /** 勾選狀態暫存在這個分頁：從 LINE 登入頁跳回來時不用重勾 */
@@ -36,12 +38,13 @@ function loadConsent(): Consent {
     const raw = sessionStorage.getItem(CONSENT_KEY);
     if (raw) {
       const c = JSON.parse(raw) as Partial<Consent>;
-      return { age13: c.age13 === true, socialPublic: c.socialPublic !== false };
+      const age = c.age === "adult" || c.age === "teen" ? c.age : null;
+      return { age, agree: c.agree === true, socialPublic: age !== "teen" && c.socialPublic !== false };
     }
   } catch {
     // 無法使用 sessionStorage 時就重勾
   }
-  return { age13: false, socialPublic: true };
+  return EMPTY_CONSENT;
 }
 
 function saveConsent(c: Consent) {
@@ -57,7 +60,7 @@ type Done = { claimId: string; alreadyClaimed: boolean };
 export function ClaimFlow({ code, show, open, closedMessage, loggedIn, pseudonym, needsConsent }: Props) {
   const [done, setDone] = useState<Done | null>(null);
   const [askConsent, setAskConsent] = useState(needsConsent);
-  const [consent, setConsentState] = useState<Consent>({ age13: false, socialPublic: true });
+  const [consent, setConsentState] = useState<Consent>(EMPTY_CONSENT);
   const consentRef = useRef(consent);
   useEffect(() => {
     const c = loadConsent();
@@ -82,7 +85,7 @@ export function ClaimFlow({ code, show, open, closedMessage, loggedIn, pseudonym
       const res = await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, consent: consentRef.current.age13 ? consentRef.current : undefined }),
+        body: JSON.stringify({ code, consent: consentReady(consentRef.current) ? consentRef.current : undefined }),
       });
       const data = await res.json();
       if (res.status === 428 && data.code === "CONSENT_REQUIRED") {
@@ -136,9 +139,9 @@ export function ClaimFlow({ code, show, open, closedMessage, loggedIn, pseudonym
         <div className="stack">
           {askConsent && <ConsentNotice consent={consent} onChange={setConsent} />}
           {error && <p className="error" role="alert">{error}</p>}
-          {askConsent && !consent.age13 ? (
+          {askConsent && !consentReady(consent) ? (
             <button type="button" className="btn btn-primary" disabled>
-              請先勾選「我已滿 13 歲」
+              {consent.age === null ? "請先選擇年齡" : "請先勾選同意"}
             </button>
           ) : loggedIn ? (
             <>
@@ -168,20 +171,37 @@ function ConsentNotice({ consent, onChange }: { consent: Consent; onChange: (c: 
         <li>收藏公開時，登入吾冊的觀眾會在同一齣戲的節目單下方看到你的化名，以及你收藏過哪些演出（只到年月），劇團的工作人員也可能看到。隨時可以在「我的收藏冊」關閉。</li>
         <li>領取紀錄會在隔天寫入公開的區塊鏈，只記日期、不記個人資料，寫入後無法刪除。</li>
       </ul>
+      <fieldset className="age-choice">
+        <legend>你的年齡</legend>
+        <label>
+          <input type="radio" name="age" checked={consent.age === "adult"} onChange={() => onChange({ ...consent, age: "adult" })} />
+          <span>18 歲以上</span>
+        </label>
+        <label>
+          <input type="radio" name="age" checked={consent.age === "teen"} onChange={() => onChange({ ...consent, age: "teen", socialPublic: false })} />
+          <span>13–17 歲</span>
+        </label>
+        <span className="small muted">未滿 13 歲請不要使用吾冊。</span>
+      </fieldset>
       <label className="toggle-row">
-        <input type="checkbox" checked={consent.age13} onChange={(e) => onChange({ ...consent, age13: e.target.checked })} />
+        <input type="checkbox" checked={consent.agree} onChange={(e) => onChange({ ...consent, agree: e.target.checked })} />
         <span>
-          我已滿 13 歲，並同意
+          我同意
           <a href="/terms" target="_blank" rel="noreferrer">使用條款</a>與<a href="/privacy" target="_blank" rel="noreferrer">隱私權政策</a>
+          {consent.age === "teen" && <span className="small muted" style={{ display: "block" }}>13–17 歲請和家長或監護人一起看過條款再同意。</span>}
         </span>
       </label>
-      <label className="toggle-row">
-        <input type="checkbox" checked={consent.socialPublic} onChange={(e) => onChange({ ...consent, socialPublic: e.target.checked })} />
-        <span>
-          公開我的收藏
-          <span className="small muted" style={{ display: "block" }}>未滿 18 歲請取消勾選。之後隨時可以改。</span>
-        </span>
-      </label>
+      {consent.age === "teen" ? (
+        <p className="small muted" style={{ margin: 0 }}>13–17 歲的收藏不公開，其他觀眾看不到你的化名與頭像。滿 18 歲後可以在「我的收藏冊」改。</p>
+      ) : (
+        <label className="toggle-row">
+          <input type="checkbox" checked={consent.socialPublic} onChange={(e) => onChange({ ...consent, socialPublic: e.target.checked })} />
+          <span>
+            公開我的收藏
+            <span className="small muted" style={{ display: "block" }}>之後隨時可以在「我的收藏冊」改。</span>
+          </span>
+        </label>
+      )}
     </section>
   );
 }
