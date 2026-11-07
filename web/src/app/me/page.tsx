@@ -6,6 +6,8 @@ import { listUserBooklets } from "@/lib/booklets";
 import { Brand } from "@/components/Brand";
 import { Gallery } from "./Gallery";
 import { LoginGate, LogoutButton } from "./LoginGate";
+import { Avatar } from "@/components/Avatar";
+import { SocialToggle } from "@/components/social/SocialToggle";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "我的收藏冊｜吾冊" };
@@ -38,7 +40,10 @@ export default async function MyCollectionPage() {
         <LogoutButton />
       </div>
       <div className="stack" style={{ gap: 6 }}>
-        <h1 className="title" style={{ fontSize: 30 }}>我的收藏冊</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Avatar pseudonym={user.pseudonym} size={44} />
+          <h1 className="title" style={{ fontSize: 30 }}>我的收藏冊</h1>
+        </div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           {booklets.length > 0 ? `${booklets.length} 份節目單・${firstYear} 年起` : "還沒有節目單"}
           {user.pseudonym ? `・化名「${user.pseudonym}」` : ""}
@@ -61,6 +66,7 @@ export default async function MyCollectionPage() {
           }))}
         />
       )}
+      <SocialToggle initial={user.social_public} publicId={user.public_id} />
       <p className="small muted center" style={{ margin: "8px 0 0" }}>每次入場掃碼，新的節目單會自動出現在這裡</p>
     </main>
   );

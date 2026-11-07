@@ -6,7 +6,7 @@ import { TEST_CATALOG } from "./test-catalog";
 
 /** 測試觀眾的識別：Google 帳號 ID 以這個開頭（不是真的 Google 帳號，無法登入） */
 export const TEST_VIEWER_PREFIX = "test-viewer-";
-export const TEST_VIEWER_COUNT = 20;
+export const TEST_VIEWER_COUNT = 50;
 
 function rng(seed: number) {
   return () => {
@@ -66,17 +66,22 @@ export interface SeedReport {
   skipped: number;
   favorites: number;
   includedUserClaims: number;
+  /** 時間用完還沒做完，再執行一次即可（可以重複執行） */
+  more: boolean;
 }
 
 /**
- * 建立 20 位測試觀眾，依每檔節目的熱門程度領取，每人至少涉及兩種類型；部分觀眾標記前三喜歡。
+ * 建立 50 位測試觀眾，依每檔節目的熱門程度領取，每人至少涉及兩種類型；部分觀眾標記前三喜歡。
+ * 測試觀眾一律「公開收藏」，用來測試節目單下方的頭像列與個人頁。
  * includeUserId：另外讓這位真實觀眾領取所有測試節目（用來測試自己的收藏冊排列）。
  * 可以重複執行，已領過的不會重複。
  */
-export async function seedTestViewers(db: Db, opts: { includeUserId?: string; now?: Date } = {}): Promise<SeedReport> {
+export async function seedTestViewers(db: Db, opts: { includeUserId?: string; now?: Date; budgetMs?: number } = {}): Promise<SeedReport> {
   const now = opts.now ?? new Date();
+  const started = Date.now();
+  const budget = opts.budgetMs ?? Infinity;
   const shows = await findTestShows(db);
-  const report: SeedReport = { viewers: 0, shows: shows.length, claims: 0, skipped: 0, favorites: 0, includedUserClaims: 0 };
+  const report: SeedReport = { viewers: 0, shows: shows.length, claims: 0, skipped: 0, favorites: 0, includedUserClaims: 0, more: false };
   if (shows.length === 0) return report;
 
   // 測試節目的主辦方一律設為基本合作（不設到期日），才看得到完整統計，也不受免費 50 份上限影響
@@ -104,8 +109,13 @@ export async function seedTestViewers(db: Db, opts: { includeUserId?: string; no
   };
 
   for (let i = 1; i <= TEST_VIEWER_COUNT; i++) {
+    if (Date.now() - started > budget) {
+      report.more = true;
+      return report;
+    }
     const n = String(i).padStart(2, "0");
     const user = await findOrCreateUser(db, { provider: "google", subject: `${TEST_VIEWER_PREFIX}${n}` });
+    await db.query(`UPDATE users SET social_public = TRUE WHERE id = $1`, [user.id]);
     report.viewers++;
 
     let picks = shows.filter((s) => r() < (reach.get(s.title) ?? 0.3));

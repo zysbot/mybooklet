@@ -12,6 +12,10 @@ export interface User {
   wallet_address: string | null;
   wallet_type: "custodial" | "self";
   notify_email: boolean;
+  /** 是否公開收藏（社交功能）；告知畫面上線前真實帳號預設不公開 */
+  social_public: boolean;
+  /** 個人頁網址用的隨機代碼 */
+  public_id: string;
 }
 
 /** 登入身分：只取帳號編號與 Email（Email 只用來寄通知），不取名稱與大頭貼 */

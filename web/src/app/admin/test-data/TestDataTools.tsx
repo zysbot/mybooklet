@@ -99,7 +99,9 @@ export function TestDataTools({
     });
     const r = await res.json().catch(() => ({}));
     setSeedMsg(
-      res.ok
+      res.ok && r.more
+        ? `已處理 ${r.viewers} 位、新增 ${r.claims} 份領取。還沒做完，請再按一次「建立測試觀眾並領取」。`
+        : res.ok
         ? `完成：${r.viewers} 位測試觀眾，找到 ${r.shows} 檔測試節目，新增 ${r.claims} 份領取、${r.favorites} 個前三喜歡${r.includedUserClaims ? `；你的帳號新增 ${r.includedUserClaims} 份` : ""}${r.skipped ? `；${r.skipped} 份因不在開放時間略過` : ""}。上鏈會在明天的每日批次進行；要馬上看到，按下方「立即上鏈」。`
         : r.error ?? "失敗"
     );
@@ -201,9 +203,9 @@ export function TestDataTools({
       </section>
 
       <section className="panel" aria-labelledby="viewers-title">
-        <h2 id="viewers-title">2. 建立 20 位測試觀眾並領取</h2>
+        <h2 id="viewers-title">2. 建立 50 位測試觀眾並領取</h2>
         <p className="muted" style={{ margin: 0, lineHeight: 1.7, fontSize: 14 }}>
-          測試觀眾依節目熱門程度領取，每人至少兩檔、至少兩種類型，約六成會標記前三喜歡。測試觀眾無法登入。
+          測試觀眾依節目熱門程度領取，每人至少兩檔、至少兩種類型，約六成會標記前三喜歡；一律公開收藏，用來看節目單下方的頭像列與個人頁。測試觀眾無法登入。
           目前已有 {testViewerCount} 位測試觀眾。請在手動上架的節目建立後再執行，才會包含進來；可以重複執行。
         </p>
         <label className="field" style={{ maxWidth: 480 }}>

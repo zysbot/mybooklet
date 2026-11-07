@@ -53,6 +53,8 @@ export interface BookletDetail extends ShowInfo {
   holderName: string | null;
   /** 這份節目單的鏈上地址；上鏈前為 null */
   walletAddress: string | null;
+  /** 本人隱藏了這一份（不出現在個人頁與別人的頭像列） */
+  hidden: boolean;
 }
 
 // 場次的卡面：場次自己指定的版本，沒有就用節目的預設版本
@@ -149,9 +151,10 @@ export async function getBooklet(q: Queryable, claimId: string, userId: string):
       tx_hash: string | null;
       pseudonym: string | null;
       recipient_address: string | null;
+      hidden: boolean;
     }
   >(
-    `SELECT c.id AS claim_id, c.serial, c.claimed_at, c.chain_status, c.token_id, c.tx_hash, c.recipient_address,
+    `SELECT c.id AS claim_id, c.serial, c.claimed_at, c.chain_status, c.token_id, c.tx_hash, c.recipient_address, c.hidden,
             u.pseudonym, ${SHOW_SELECT}
        JOIN claims c ON c.show_id = s.id
        JOIN users u ON u.id = c.user_id
@@ -170,5 +173,6 @@ export async function getBooklet(q: Queryable, claimId: string, userId: string):
     txHash: row.tx_hash,
     holderName: row.pseudonym,
     walletAddress: row.recipient_address,
+    hidden: Boolean(row.hidden),
   };
 }

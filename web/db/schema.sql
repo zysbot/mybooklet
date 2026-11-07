@@ -244,3 +244,20 @@ ALTER TABLE claims ADD COLUMN IF NOT EXISTS custody_path TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS claims_custody_path ON claims (custody_path) WHERE custody_path IS NOT NULL;
 -- 舊做法（一人一地址）留下的代管地址不再使用
 UPDATE users SET wallet_address = NULL WHERE wallet_type = 'custodial' AND wallet_address IS NOT NULL;
+
+-- ---------------------------------------------------------------
+-- 2026-11-07 社交功能（頭像列、個人頁）
+-- ---------------------------------------------------------------
+
+-- 是否公開收藏（社交功能）。首次領取告知畫面與隱私權政策上線前，真實帳號一律預設不公開；
+-- 測試觀眾由測試資料工具設為公開。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS social_public BOOLEAN NOT NULL DEFAULT FALSE;
+-- 個人頁網址用的隨機代碼（不用資料庫編號，避免照順序翻）
+ALTER TABLE users ADD COLUMN IF NOT EXISTS public_id TEXT;
+UPDATE users SET public_id = substr(replace(gen_random_uuid()::text, '-', ''), 1, 16) WHERE public_id IS NULL;
+ALTER TABLE users ALTER COLUMN public_id SET DEFAULT substr(replace(gen_random_uuid()::text, '-', ''), 1, 16);
+ALTER TABLE users ALTER COLUMN public_id SET NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_public_id ON users (public_id);
+
+-- 觀眾可以隱藏單一份：不出現在自己的個人頁與別人的頭像列
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;

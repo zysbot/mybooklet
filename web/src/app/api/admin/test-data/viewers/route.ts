@@ -5,12 +5,13 @@ import { seedTestViewers, clearTestViewers } from "@/lib/test-data";
 
 export const maxDuration = 60;
 
-/** 建立 20 位測試觀眾並領取測試節目；上鏈交給每日批次（或後台的「立即上鏈」） */
+/** 建立 50 位測試觀眾並領取測試節目；上鏈交給每日批次（或後台的「立即上鏈」）。約 45 秒後停下，回傳 more 時再呼叫一次。 */
 export async function POST(req: Request) {
   if (!(await isAdmin())) return NextResponse.json({ error: "請先登入後台" }, { status: 401 });
   const { includeUserId } = (await req.json().catch(() => ({}))) as { includeUserId?: string };
   const report = await seedTestViewers(getDb(), {
     includeUserId: includeUserId && /^\d+$/.test(includeUserId) ? includeUserId : undefined,
+    budgetMs: 45_000,
   });
   return NextResponse.json(report);
 }

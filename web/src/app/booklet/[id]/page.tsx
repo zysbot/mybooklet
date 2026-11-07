@@ -11,6 +11,10 @@ import { BookletReader } from "@/components/BookletReader";
 import { getDesignPages } from "@/lib/pages";
 import { getFavorites } from "@/lib/favorites";
 import { FavoritePicker } from "@/components/FavoritePicker";
+import { getUser } from "@/lib/users";
+import { getCoCollectors } from "@/lib/social";
+import { CoCollectors } from "@/components/social/CoCollectors";
+import { HideToggle } from "@/components/social/HideToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +38,11 @@ export default async function BookletPage({ params }: Params) {
   const db = getDb();
   const b = await getBooklet(db, id, userId);
   if (!b) notFound();
-  const [pages, favorites] = await Promise.all([
+  const [pages, favorites, co, me] = await Promise.all([
     b.pageCount > 0 ? getDesignPages(db, b.designId) : Promise.resolve([]),
     getFavorites(db, userId),
+    getCoCollectors(db, userId, b.claimId),
+    getUser(db, userId),
   ]);
 
   const { content } = b;
@@ -109,6 +115,11 @@ export default async function BookletPage({ params }: Params) {
 
         </>
       )}
+
+      <hr className="rule" />
+
+      {co && <CoCollectors title={b.title} r={co} viewerPublic={Boolean(me?.social_public)} />}
+      <HideToggle claimId={b.claimId} initial={b.hidden} />
 
       <section className="cert" aria-labelledby="cert-title">
         <div className="cert-head">

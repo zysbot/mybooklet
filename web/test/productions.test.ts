@@ -125,7 +125,7 @@ describe("測試觀眾", () => {
     }
   });
 
-  it("20 位觀眾，每人至少兩檔、至少兩種類型，部分標記前三", async () => {
+  it("50 位觀眾，每人至少兩檔、至少兩種類型，部分標記前三，一律公開收藏", async () => {
     const r = await seedTestViewers(db, { now: NOW });
     expect(r.viewers).toBe(TEST_VIEWER_COUNT);
     expect(r.shows).toBe(10);
@@ -136,7 +136,9 @@ describe("測試觀眾", () => {
          FROM claims c JOIN shows s ON s.id = c.show_id JOIN productions p ON p.id = s.production_id
          JOIN users u ON u.id = c.user_id WHERE u.google_sub LIKE 'test-viewer-%' GROUP BY c.user_id`
     );
-    expect(per.rows).toHaveLength(20);
+    expect(per.rows).toHaveLength(TEST_VIEWER_COUNT);
+    const pub = await db.query<{ n: string }>(`SELECT count(*) AS n FROM users WHERE google_sub LIKE 'test-viewer-%' AND social_public`);
+    expect(Number(pub.rows[0].n)).toBe(TEST_VIEWER_COUNT);
     for (const row of per.rows) {
       expect(Number(row.n)).toBeGreaterThanOrEqual(2);
       expect(Number(row.g)).toBeGreaterThanOrEqual(2);
@@ -181,7 +183,7 @@ describe("測試觀眾", () => {
   it("清除測試觀眾，真實觀眾不受影響", async () => {
     const me = await findOrCreateUser(db, { provider: "line", subject: "U-me" });
     await seedTestViewers(db, { now: NOW, includeUserId: me.id });
-    expect(await clearTestViewers(db)).toBe(20);
+    expect(await clearTestViewers(db)).toBe(TEST_VIEWER_COUNT);
     const left = await db.query<{ n: string }>(`SELECT count(*) AS n FROM claims`);
     expect(Number(left.rows[0].n)).toBe(10);
   });
